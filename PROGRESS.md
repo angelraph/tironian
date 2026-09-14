@@ -53,3 +53,25 @@
 - Topped up AvalCollateralVault's testnet liquidity (5 CTC) after a "Not enough pool liquidity for this loan" revert during testing, that one was correct behavior, just an empty pool, not a bug.
 - Found a real bug from a "transaction execution reverted" after a full attestation pass: an instrument's status stays "Funded" on-chain until markExpired() is actually called, even past its own expiry block, and the relay's pre-submit check was only looking at that status field. Attestation takes long enough to cross the expiry line while still waiting. Fixed by checking the real block number directly, before every step, not just the last one, verified against the actual expired instrument on testnet, on both local and the live Vercel deployment. Also added a client-side check that catches a mistyped presentment document immediately instead of after wasting a real transaction and the full wait.
 - Wrote the pitch deck as an actual designed PDF (`docs/aval-pitch-deck.pdf`), and rewrote the demo video script as a plain, word-for-word read-aloud version. Kept the script out of the repo itself, it's a personal recording aid, not project documentation, sent directly instead.
+- Refreshed the README's architecture section with real Mermaid diagrams (a flowchart of the four pieces and a sequence diagram of the proof lifecycle), and rewrote the status section to mention the two reliability fixes.
+- Filled and submitted the actual DoraHacks BUIDL project (separate from the earlier hacker registration), end to end, in the user's own logged-in browser. Caught two real bugs in the process instead of shipping around them:
+  1. The Submission step doesn't autosave the way Profile, Details, Team, and Contact do. Navigating away from it to double-check an earlier step silently wiped everything already typed there (Track, Project Name, Sector, Description, USC summary, GitHub/Deck/Video URLs). Refilled it and stayed on that step until it was confirmed saved.
+  2. The Telegram field auto-prepends `@`, so typing a handle that already starts with `@` doubles it (`@@raphdapope`). Fixed by typing the handle without the leading `@`.
+  3. Submission itself rejected on a 960-character limit on Project Description and USC Integration Summary, a limit that isn't shown anywhere on the form until you actually try to submit. Trimmed both to fit without dropping any real claim.
+- Submitted successfully. Confirmed publicly visible on DoraHacks after their own platform review cleared it (separate from the hackathon's own "Under Review" status, which showed correctly from the start).
+- Wrote and posted an X thread (a main post plus three replies) covering the submission, the core problem, and why Aval matters, with real links to the app, repo, and deck.
+
+## 2026-09-14 (Day 3, deadline day)
+
+- Checked the pitch deck for em dashes (none, every dash in it is a regular hyphen) and for factual errors. Found two real issues:
+  1. Slide 2 was missing "the" ("how most of world trade" instead of "how most of the world's trade"), inconsistent with the README's own wording.
+  2. Slide 5 claimed "a public proof explorer shows the decoded event behind every payout." Checked that against the actual frontend code instead of trusting memory, and it doesn't exist. What's really there is a plain-text relay log (mined, attested, proof generated, submitted, with the real tx hash), which is genuinely useful but not what the slide described.
+- Fixed both in the deck's source script, regenerated the PDF, and pushed it to the same file path, so the raw GitHub link already in the DoraHacks submission and the README serves the corrected version with no form re-edit needed. Verified with a direct HTTP check that the link resolves to the new file (200 OK, matching byte size).
+- Ran a full pre-deadline health check, not just a visual pass:
+  - `forge test`: all 29 tests pass.
+  - `next build`: compiles and typechecks clean, all six routes present.
+  - Live app: loads correctly, and the Desk page is pulling real on-chain data, instrument #7 now shows "Funded," meaning someone (very possibly a judge) has already interacted with the live contracts.
+  - DoraHacks BUIDL page: checked from a logged-out browser, still publicly visible, no login wall, Details/Team/Milestones tabs all render correctly.
+  - All four outbound links from the DoraHacks profile (GitHub repo, live app, pitch deck PDF, X demo video) checked directly, all 200 OK.
+  - Block explorer page for `AvalInstrument` still loads.
+- Nothing broken. Git tree clean, everything already pushed.

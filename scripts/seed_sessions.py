@@ -64,12 +64,23 @@ def main() -> int:
         if p in done:
             continue
         t = time.time()
+        proc = subprocess.Popen([a.hermes, "chat", "-q", p], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, encoding="utf-8", errors="replace", env=env)
         try:
-            r = subprocess.run([a.hermes, "chat", "-q", p], capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=a.timeout, env=env)
-            status = "ok" if r.returncode == 0 else f"exit {r.returncode}"
-            limited = "rate limit" in (r.stdout + r.stderr).lower()
+            out, _ = proc.communicate(timeout=a.timeout)
+            status = "ok" if proc.returncode == 0 else f"exit {proc.returncode}"
+            limited = "rate limit" in (out or "").lower()
         except subprocess.TimeoutExpired:
+            # On Windows, killing hermes.exe leaves its child processes running and holding the
+            # pipe open, so end the whole process tree.
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+            else:
+                proc.kill()
+            try:
+                proc.communicate(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
             status, limited = "timeout", False
         rec = {"i": i, "prompt": p, "status": status, "seconds": round(time.time() - t, 1), "rate_limited": limited}
         with a.log.open("a", encoding="utf-8") as fh:

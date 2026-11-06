@@ -1,0 +1,3 @@
+# Tironian's sidecar venv (created by `hermes tironian trainer setup`). Hermes itself installs
+# nothing for Tironian: the plugin's in-process code is standard library only.
+modal>=1.6,<2

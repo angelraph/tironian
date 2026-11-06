@@ -1,0 +1,4 @@
+# Training image (Modal GPU container, or a local CUDA machine via `--local`).
+# unsloth pins compatible torch / transformers / trl / peft / bitsandbytes ranges itself.
+unsloth==2026.10.9
+hf_transfer>=0.1.8,<0.2

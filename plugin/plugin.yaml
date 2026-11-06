@@ -1,0 +1,54 @@
+name: tironian
+version: "0.1.0"
+manifest_version: 2
+description: >-
+  Distills your own Hermes work into a personal local model: captures and grades every turn,
+  finds recurring task families, fine-tunes a small model per family (Modal or your GPU),
+  proves it on held-out steps from your own sessions, then routes matching requests to it
+  with validation and silent fallback to your model.
+author: angelraph
+license: MIT
+homepage: https://github.com/angelraph/tironian
+requires_hermes: ">=0.22.3"
+tags: [models, local-models, fine-tuning, distillation, routing, privacy]
+provides_tools: []
+provides_hooks:
+  - on_session_start
+  - pre_llm_call
+  - post_llm_call
+  - post_tool_call
+  - api_request_error
+  - on_session_end
+  - on_session_finalize
+  - on_session_delete
+  - post_approval_response
+  - subagent_start
+# Middleware (llm_execution) is declared in the catalog entry's capabilities block, not here.
+requires_env: []
+config_schema:
+  capture_enabled: {type: bool, default: true, label: "Learn from my sessions"}
+  routing_enabled: {type: bool, default: false, label: "Let promoted students answer", description: "Master switch. Students only answer task families that passed their held-out test."}
+  promotion_mode: {type: str, choices: [shadow, live], default: shadow, label: "After a student passes its test", description: "shadow = answer in the background and compare; live = answer for real (with fallback)."}
+  exclude_platforms: {type: list, default: [cron, kanban], label: "Never learn from these platforms"}
+  capture_subagents: {type: bool, default: false}
+  redact_pii: {type: bool, default: true, label: "Redact emails, phone numbers, cards, IBANs, usernames"}
+  retention_days: {type: int, default: 90, description: "Captured contexts older than this are dropped (aggregates kept)."}
+  judge_enabled: {type: bool, default: false, label: "Use a blind LLM judge for final-answer steps", description: "Uses the 'Tironian judge' auxiliary model slot."}
+  judge_daily_budget: {type: int, default: 50}
+  base_model: {type: str, choices: [qwen3-1.7b, qwen3-4b], default: qwen3-1.7b, label: "Student base model"}
+  train_backend: {type: str, choices: [modal, local], default: modal, label: "Train on", description: "modal = rented GPU in your own Modal account (~$0.30/run); local = this machine's NVIDIA GPU."}
+  modal_gpu: {type: str, choices: [L4, A10G], default: L4}
+  max_usd_per_run: {type: float, default: 1.0, label: "Hard cost cap per training run (USD)"}
+  promotion_threshold: {type: float, default: 0.85, description: "Lower 95% bound of the held-out pass rate a student must clear."}
+  min_eval_n: {type: int, default: 30}
+  validity_floor: {type: float, default: 0.98}
+  min_family_turns: {type: int, default: 25}
+  route_confidence_min: {type: float, default: 0.55}
+  route_margin_min: {type: float, default: 0.10}
+  student_endpoint: {type: str, default: "http://127.0.0.1:8080/v1", label: "Student server", description: "Hermes's local model runtime by default; any OpenAI-compatible server works."}
+  student_timeout_s: {type: int, default: 25}
+  max_context_tokens: {type: int, default: 3072}
+  teacher_usd_per_mtok_in: {type: float, default: 3.0, description: "Used only when your provider doesn't report cost."}
+  teacher_usd_per_mtok_out: {type: float, default: 15.0}
+  modal_token_id: {type: secret, env: MODAL_TOKEN_ID, label: "Modal token ID"}
+  modal_token_secret: {type: secret, env: MODAL_TOKEN_SECRET, label: "Modal token secret"}

@@ -1,246 +1,151 @@
-# Aval
+# Tironian
 
-Aval is a documentary credit built on Creditcoin. A buyer's payment sits in escrow until proof
-that goods actually shipped arrives from another chain, verified without a bank, a custodial
-oracle, or a bridge operator in the loop.
+**Your own small model, learned from your own Hermes work.**
 
-Built for BUIDL CTC 2026 Fall (Creditcoin x Credit Labs), RWA track.
+Tironian is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin that closes the loop
+between how you actually use Hermes and a personal, local model:
 
-Live app: **https://aval-three-phi.vercel.app**
-Pitch deck: [`docs/aval-pitch-deck.pdf`](docs/aval-pitch-deck.pdf)
+1. **Captures** every model step Hermes takes, redacting secrets and personal data *before*
+   anything is stored.
+2. **Grades** every turn from what really happened — tool failures, exit codes, corrections,
+   repeats, approvals, interrupts, your `/tironian good|bad` — never from the model's opinion of itself.
+3. **Finds recurring tasks** ("what's using disk space in X", "count the .pdf files in Y"),
+   deterministically.
+4. **Fine-tunes a small model per task family** (Qwen3 1.7B LoRA → quantized GGUF) on a rented GPU
+   in *your* Modal account (~$0.30 a run, hard-capped) or on your own NVIDIA GPU.
+5. **Proves it** on held-out steps from your own sessions — sessions it never saw in training — and
+   promotes it only if the *lower* bound of the 95% confidence interval on its pass rate clears 85%.
+6. **Routes** matching requests to it through Hermes's local model runtime. Every answer is
+   validated (well-formed, a tool the request actually offers, schema-valid arguments); anything
+   off, and your own model answers instead — silently. A failed or blocked step hands the rest of
+   the turn back to your model.
 
-Live on testnet:
+The result: the routine part of your work gets faster, cheaper, private and offline-capable,
+week after week — and it can never get worse than what you have today.
 
-- `AvalInstrument`: [`0xFbe8A52580E0155dB0154eaeFc6D66c91565F5DE`](https://creditcoin-testnet.blockscout.com/address/0xFbe8A52580E0155dB0154eaeFc6D66c91565F5DE) on Creditcoin CC3 testnet
-- `AvalCollateralVault`: [`0x1584A2252694E957e8B569d6F55A1C856aEa4a94`](https://creditcoin-testnet.blockscout.com/address/0x1584A2252694E957e8B569d6F55A1C856aEa4a94) on Creditcoin CC3 testnet
-- `AvalPresentment`: [`0x2017c0D852b949a5835D99f86CDb6FA9c0eCf141`](https://sepolia.etherscan.io/address/0x2017c0D852b949a5835D99f86CDb6FA9c0eCf141) on Sepolia
-- `AvalTestToken` (aTUSD, a mock stablecoin for demoing ERC20 settlement): [`0xff726e92187002ef2615b80FbE67c79b9DF6a2ec`](https://creditcoin-testnet.blockscout.com/address/0xff726e92187002ef2615b80FbE67c79b9DF6a2ec) on Creditcoin CC3 testnet
+> Named after Tiro, Cicero's secretary, who learned his master's work so well that he invented
+> shorthand to carry it forward.
 
-All three Creditcoin contracts are verified on the explorer, source, ABI, and a Read/Write tab
-included, anyone can inspect them or call them directly, no need to trust the frontend. aTUSD
-mints freely (`mint(address,uint256)`, no restriction), so testing the ERC20 path doesn't need
-anything from us: mint yourself some from the app itself, or straight from the explorer.
+## Why
 
-## The problem
+Every Hermes turn is training data that is thrown away. Hermes already writes trajectories in
+Nous's Hermes function-calling format and already runs local GGUF models through its managed
+llama.cpp runtime. Tironian is the missing link between the two: a data flywheel that turns
+*your* usage into *your* model, with an evaluation gate strict enough that you can trust it.
 
-A documentary credit (a letter of credit, in older language) is how most of the world's trade
-gets paid for. An importer's bank promises to pay an exporter once the exporter proves, on paper,
-that goods were shipped. It works, but it is slow: banks on both sides manually check paper
-documents against the credit terms, and the process routinely takes days to weeks and costs real
-money in bank fees. It also depends entirely on trusting both banks to do their job honestly.
-
-## What Aval does instead
-
-1. A drawer (the exporter) issues an instrument on Creditcoin: an amount, a drawee (the
-   importer), a beneficiary to be paid, and the hash of the document that has to be presented.
-2. The drawee funds the instrument, in native CTC or an ERC20 (a stablecoin, in practice). The
-   amount is locked in the contract, not held by a bank.
-3. When the goods ship, the beneficiary presents that document on a source chain (Sepolia in
-   this build, any EVM chain the Attestcoin Protocol supports in principle).
-4. The Attestcoin Protocol proves that presentation happened, and Aval's contract on Creditcoin
-   verifies that proof directly against the real block prover precompile, checks the document
-   hash matches, and releases the funds. No party decides this by hand.
-
-If the document never gets presented before the deadline, the drawee gets the escrow back
-automatically.
-
-## Architecture
-
-Four pieces, two chains, no piece in the middle that has to be trusted:
-
-```mermaid
-flowchart LR
-    subgraph Users
-        Drawer
-        Drawee
-        Beneficiary
-        Lender
-    end
-
-    subgraph Frontend["Frontend (Next.js)"]
-        UI["Desk / Issue / Instrument / Lend"]
-        Relay["Proof relay (stateless, one small step per call)"]
-    end
-
-    subgraph Sepolia["Sepolia (source chain)"]
-        Presentment[AvalPresentment]
-    end
-
-    subgraph Attestcoin["Attestcoin Protocol"]
-        ProofBuilder[Proof builder]
-        Precompile["Block prover precompile"]
-    end
-
-    subgraph Creditcoin["Creditcoin CC3 testnet"]
-        Instrument[AvalInstrument]
-        Vault[AvalCollateralVault]
-    end
-
-    Drawer -- issue --> UI
-    Drawee -- fund --> UI
-    Beneficiary -- present --> UI
-    Lender -- deposit / borrow --> UI
-
-    UI -- issue, fund --> Instrument
-    UI -- presentDocument --> Presentment
-    UI -- pledge, borrow --> Vault
-
-    Presentment -- DocumentPresented event --> ProofBuilder
-    ProofBuilder -- inclusion + continuity proof --> Relay
-    Relay -- "execute(proof)" --> Instrument
-    Instrument -- verifyAndEmit --> Precompile
-    Precompile -- verified --> Instrument
-    Instrument -- payout --> Beneficiary
-    Instrument -- payout redirect --> Vault
-    Vault -- loan repayment --> Beneficiary
-```
-
-`AvalInstrument` never asks Attestcoin's off-chain services to be trusted, only the precompile,
-which is part of Creditcoin itself. Everything upstream of that (the proof builder, the relay) is
-just plumbing to get a proof in front of the contract; none of it can make the contract accept a
-proof that isn't real.
-
-The relay itself deliberately holds no state on the server between calls. Each call does one
-small, bounded check (is it mined yet, is it attested yet, is the proof cached yet) and hands
-back exactly what's needed to resume. The browser drives the polling and keeps the running log,
-so a page reload mid-wait doesn't lose progress, and no single request has to survive the several
-minutes the full wait can take, which matters on serverless hosting.
-
-The proof lifecycle, in order:
-
-```mermaid
-sequenceDiagram
-    participant Drawer
-    participant Drawee
-    participant Beneficiary
-    participant Instrument as AvalInstrument (Creditcoin)
-    participant Presentment as AvalPresentment (Sepolia)
-    participant Attestcoin as Attestcoin Protocol
-    participant Relayer
-
-    Drawer->>Instrument: issue(drawee, beneficiary, token, amount, docHash, expiry)
-    Drawee->>Instrument: fund(id)
-    Note over Instrument: Escrow locked
-    Beneficiary->>Presentment: presentDocument(id, docHash)
-    Note over Presentment: DocumentPresented event emitted
-    Relayer->>Attestcoin: wait for attestation, fetch proof
-    Attestcoin-->>Relayer: inclusion + continuity proof
-    Relayer->>Instrument: execute(proof)
-    Instrument->>Attestcoin: verifyAndEmit(proof)
-    Attestcoin-->>Instrument: verified
-    Instrument->>Instrument: decode log, check docHash matches
-    Instrument->>Beneficiary: payout (native CTC or ERC20)
-    Note over Instrument: Status: Honored
-```
-
-`Relayer` is just whoever pays the Creditcoin gas to submit the proof, the frontend's own wallet
-by default, so the beneficiary never needs testnet CTC of their own. `execute()` is permissionless:
-anyone submitting the same valid proof gets the same result, the relayer has no special power.
-
-## Instrument financing
-
-A beneficiary does not have to wait out the full presentment window to get paid. Once an
-instrument is funded, they can borrow up to 80% of its value from AvalCollateralVault, a small
-lending pool. The loan is repaid automatically, out of the instrument's own payout, the moment
-Attestcoin proves the document presentation. There is no separate repayment step and no way for
-the borrower to skip it, because the money never passes through their hands until the loan is
-already settled.
-
-## How the trust actually works
-
-Aval does not build its own cross-chain verification. It uses Creditcoin's Attestcoin Protocol
-(`@gluwa/asc-contracts` and `@gluwa/usc-sdk`), the same base contracts and off-chain proof
-pipeline used in Gluwa's own reference examples. `AvalInstrument` extends `ASCBase`, which checks
-every submitted proof against the real block prover precompile before any of Aval's own logic
-runs. Aval decides what a valid document presentation means for its own instruments; it does not
-decide what counts as a valid inclusion proof. That part stays exactly as audited.
-
-## Repository layout
-
-```
-contracts/   Solidity contracts, Foundry tests, and the TypeScript deployment/demo scripts
-web/         Frontend
-docs/        Technical write-up, pitch deck (outline and PDF), testing guide
-```
-
-## Contracts
-
-- `AvalInstrument.sol`, deployed on Creditcoin. Issues, funds, and honors instruments. Verifies
-  Attestcoin proofs itself through `ASCBase.execute()`.
-- `AvalPresentment.sol`, deployed on the source chain. The one contract Aval trusts for document
-  presentation events.
-- `AvalCollateralVault.sol`, deployed on Creditcoin. The instrument financing pool described
-  above. Native CTC instruments only, for now: it's notified of a payout with a value-carrying
-  call, which doesn't make sense for an ERC20.
-- `AvalTestToken.sol`, deployed on Creditcoin. A mock stablecoin (aTUSD, 6 decimals, mints
-  freely) for demoing an instrument settled in an ERC20 instead of native CTC.
-
-Run the test suite:
+## Install
 
 ```bash
-cd contracts
-npm install
-npm run build
-npm test
+hermes plugins install angelraph/tironian
+hermes plugins enable tironian
 ```
 
-## Running the full flow on testnet
+Then, in any Hermes session:
 
-See `contracts/.env.example` for the environment variables you need (a funded wallet on both
-Sepolia and Creditcoin CC3 testnet, RPC URLs, and the Attestcoin proof builder URL).
+```
+/tironian report        what's recurring in your history and what it costs
+/tironian families      task families and what each still needs
+/tironian               status: learned, served locally, saved
+```
+
+Tironian reads your existing Hermes history **read-only** on first use, so the report has
+something to show in the first minute — no keys, no GPU, no spend.
+
+## Train your first student
 
 ```bash
-cd contracts
-npm run deploy:sepolia       # deploys AvalPresentment
-npm run deploy:creditcoin    # deploys AvalInstrument and AvalCollateralVault
-npm run register:source      # tells AvalInstrument which source contract to trust
-
-npm run issue -- <drawee> <beneficiary> <amountEth> "<document text>" <expiryBlocksFromNow>
-npm run fund -- <instrumentId>
-npm run present -- <instrumentId> "<document text>"
-npm run verify-proof -- <instrumentId> <sepoliaTxHash>   # the Attestcoin step
-npm run status -- <instrumentId>
+hermes tironian trainer setup          # creates Tironian's own venv with the Modal client
+hermes tironian trainer check          # verifies your Modal token (no compute, no cost)
+hermes tironian train <family> --follow
 ```
 
-To run it as two separate wallets instead of one (so it isn't just talking to itself), set
-`COUNTERPARTY_PRIVATE_KEY` in `.env`, issue with the counterparty's address as drawee and
-beneficiary, then add `--as counterparty` to `fund` and `present`:
+Add your Modal token in **Settings → Plugins → Tironian** (or as `MODAL_TOKEN_ID` /
+`MODAL_TOKEN_SECRET` in Hermes's `.env`). Modal's free Starter plan covers many runs; each run is
+capped by `max_usd_per_run` (default $1.00), enforced as a GPU timeout. Prefer your own GPU? Set
+`train_backend: local` and run `hermes tironian trainer setup --local`.
+
+When training finishes, load the student — Hermes Desktop → **Settings → Providers → Local
+Models → Add model file** (the path is printed) — then:
 
 ```bash
-npm run fund -- <instrumentId> --as counterparty
-npm run present -- <instrumentId> "<document text>" --as counterparty
+hermes tironian eval <student>         # held-out test on your own sessions; shows the gate verdict
+hermes tironian shadow <family>        # answers in the background, compared with your model
+hermes tironian promote <family>       # once shadow agreement is high enough
 ```
 
-`verify-proof` stays as the first wallet: `execute()` is permissionless, so it's just paying the
-Creditcoin gas to relay a proof, not acting as a party to the trade.
+and turn on **Let promoted students answer** in the plugin settings.
 
-To settle in aTUSD instead of native CTC, deploy the token, mint some, and pass `test` as a sixth
-argument to `issue` (amounts are then read as the token's own 6-decimal units, e.g. `10000000` is
-10.00 aTUSD):
+## Guarantees
+
+- **Never worse than baseline.** Your model's call is made at most once per request; any
+  Tironian error before it falls through to your model; any error after it returns your model's
+  answer. Hermes's own middleware is fail-open as well.
+- **Validated or not used.** A student's answer must parse, call only tools the request offers,
+  and pass each tool's argument schema. Otherwise your model answers.
+- **Sticky hand-back.** After one fallback, or any failed or blocked tool step, your model finishes
+  the turn.
+- **Approvals still apply.** Student tool calls go through the same Hermes guardrails and
+  approvals as your model's.
+- **Auto-demotion.** A live student whose fallback rate exceeds 10% (over the last 50) or that you
+  mark bad twice drops back to shadow mode.
+- **Students never learn from students.** Only steps your own model produced, in turns graded
+  good, are ever trained on.
+
+## Disclosure (catalog rule 13)
+
+- **Reads outside its own data:** this profile's `state.db`, **read-only** (`mode=ro`), once on first
+  use and on `hermes tironian import`, to grade past sessions. Nothing is written to it.
+- **Stores:** a SQLite database and job folders under `<HERMES_HOME>/plugin-data/tironian/`:
+  redacted request contexts and responses, tool outcomes, grades, datasets, trained GGUF files.
+  Captured contexts older than `retention_days` (90) are dropped. Deleting a session in Hermes
+  deletes it here; `hermes tironian purge` deletes everything; `/tironian off` stops capture for a
+  conversation and excludes what was already captured.
+- **Redaction before storage:** API keys and tokens (OpenAI, Anthropic, OpenRouter, GitHub, AWS,
+  Slack, Google, Stripe, Hugging Face, Modal), JWTs, private keys, bearer tokens, URL credentials,
+  `password=`-style assignments, high-entropy strings; emails, phone numbers, card numbers (Luhn),
+  IBANs; your home folder and login name. Steps with more than 5 sensitive masks are never trained on.
+- **Network:** none during normal use. The router talks only to `student_endpoint`
+  (default `http://127.0.0.1:8080/v1`, Hermes's local model runtime). **Only when you start
+  training** does Tironian's separate trainer process upload that family's redacted training set
+  to a private Volume in **your own Modal account**, run the job there, download the trained model,
+  and delete the job's files from the Volume. The optional LLM judge (off by default) sends
+  held-out examples to the model you assign to the "Tironian judge" auxiliary slot.
+- **Processes and installs:** `hermes tironian trainer setup` (explicit) creates a venv under the
+  plugin data folder and installs the `modal` client from PyPI (`--local` also installs the
+  training stack). Training runs as a detached process in that venv; it is only ever started by
+  you — never by cron, the gateway, or a model turn. Shadow mode uses one short-lived background
+  thread at a time.
+- **Credentials:** the Modal token is read only through Hermes's secret store and passed only to
+  the trainer process's environment. It is never written to disk by Tironian.
+- **Telemetry:** none.
+
+## How it works
+
+| Piece | Where |
+|---|---|
+| Capture + live routing (`llm_execution` middleware) and hooks | `plugin/core/engine.py` |
+| Redaction | `plugin/core/redact.py` |
+| Grading | `plugin/core/grade.py` |
+| Task families (deterministic clustering) | `plugin/core/families.py` |
+| Hermes function-calling format (one path for training *and* serving) | `plugin/core/hermes_format.py` |
+| Datasets, held-out evaluation, promotion gate | `plugin/core/pipeline.py`, `plugin/core/evaluate.py` |
+| Training (Unsloth LoRA → GGUF, Modal or local CUDA) | `plugin/trainer/` |
+
+Uses only public plugin surfaces: hooks, `llm_execution` middleware, a slash command, a CLI
+command, an auxiliary model slot, plugin storage and the secret store. No core patches. The
+in-process plugin is standard-library only.
+
+## Development
 
 ```bash
-npm run deploy:test-token
-npm run mint:test-token -- <to> <amount>
-npm run issue -- <drawee> <beneficiary> <amount> "<document text>" <expiryBlocksFromNow> test
+python -m pytest tests -q
+hermes plugins validate plugin
+hermes plugins doctor plugin --ci
 ```
 
-## Status
-
-Live on testnet and deployed at https://aval-three-phi.vercel.app. The full flow has been run end
-to end for real, more than once: single-wallet, two separate wallets settling in native CTC, and
-two separate wallets settling in the ERC20 test stablecoin. All honored correctly. The frontend
-(Desk, Issue, instrument detail with fund/present/verify, and the lending pool) is live and wired
-to the deployed contracts, all three Creditcoin contracts are verified on the block explorer.
-
-A round of real user testing on the live deployment also turned up two genuine reliability bugs,
-both fixed and re-verified against production, not just locally: the proof relay used to lose
-track of progress across serverless invocations (fixed by making it fully stateless), and an
-instrument could fail with a bare revert if attestation crossed its expiry window mid-wait (fixed
-by checking the real block number before every step, with a clear reason instead of a raw
-revert). See `PROGRESS.md` for the day-by-day log.
-
-Submitted to BUIDL CTC 2026 Fall on DoraHacks under the RWA track, and currently under review
-ahead of the 2026-09-14 04:59 UTC deadline.
+`scripts/seed_sessions.py` runs real, read-only Hermes sessions to bootstrap a family for
+development and the demo (the demo's student was trained on sessions seeded this way, with the
+author's own model as the teacher).
 
 ## License
 

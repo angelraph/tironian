@@ -23,7 +23,9 @@ provides_hooks:
   - on_session_delete
   - post_approval_response
   - subagent_start
-# Middleware (llm_execution) is declared in the catalog entry's capabilities block, not here.
+# `hermes plugins validate` checks this list (the v0.22.7 loader still logs it as an unknown field).
+provides_middleware:
+  - llm_execution
 requires_env: []
 config_schema:
   capture_enabled: {type: bool, default: true, label: "Learn from my sessions"}

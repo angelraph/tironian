@@ -21,8 +21,7 @@ def test_declared_capabilities_match_registrations():
     ctx = FakeCtx()
     tironian.register(ctx)
     assert sorted(ctx.hooks) == _list("provides_hooks")
-    # Declared in the catalog entry (plugin.yaml has no provides_middleware field).
-    assert sorted(ctx.middleware) == ["llm_execution"]
+    assert sorted(ctx.middleware) == _list("provides_middleware") == ["llm_execution"]
     assert "provides_tools: []" in MANIFEST
     assert ctx.commands.keys() == {"tironian"} and ctx.cli.keys() == {"tironian"}
     assert ctx.aux == ["tironian_judge"]

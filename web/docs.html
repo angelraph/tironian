@@ -127,7 +127,7 @@ hermes config set plugins.entries.tironian.settings.train_backend local</pre>
     <p>Runs the whole job pipeline, from dataset to status updates to a placeholder model file, with no compute at all. Useful for trying Tironian out and for its own tests. A dry-run model is not a real model and can't pass a test.</p>
 
     <h2 id="load">Loading a model</h2>
-    <p>Trained models are saved as GGUF files under Tironian's data folder; <code>hermes tironian students</code> prints the paths. In Hermes Desktop open <b>Settings, Providers, Local Models, Add model file</b> and pick the file. Hermes's local runtime serves it, and Tironian talks to it at <code>http://127.0.0.1:8080/v1</code> by default.</p>
+    <p>Trained models are saved as GGUF files under Tironian's data folder; <code>hermes tironian students</code> prints the paths. Tironian loads the model for you: if you run Ollama it registers it there, using the same prompt format it was trained on, and Hermes's own local model server works too. Tironian talks to <code>http://127.0.0.1:8080/v1</code> by default and switches to Ollama's <code>http://127.0.0.1:11434/v1</code> when only Ollama has the model. Any other OpenAI-compatible server works if you set <code>student_endpoint</code>.</p>
     <p>Any OpenAI compatible server works too: Ollama, LM Studio or a llama.cpp server you run yourself. Set <code>student_endpoint</code> to its address.</p>
 
     <h2 id="slash">Slash command</h2>
@@ -202,7 +202,7 @@ hermes config set plugins.entries.tironian.settings.train_backend local</pre>
     <h3>"Modal token missing" or "Token validation failed"</h3>
     <p>Check that both values are set and that the secret starts with <code>as-</code>. Run <code>hermes tironian trainer check</code> after changing them.</p>
     <h3>"the local model server doesn't list ..."</h3>
-    <p>The model file isn't loaded in Hermes yet. Add it under Local Models, then run the test again.</p>
+    <p>No local model server has the model yet. Install Ollama and run the test again, and Tironian will load it, or load the file into the server you use and set <code>student_endpoint</code>.</p>
     <h3>The model failed its test</h3>
     <p>That is the gate doing its job. The message says why (too few held-out steps, format errors or the lower bound). More data usually fixes it; train again later.</p>
     <h3>Nothing goes to the small model</h3>

@@ -102,9 +102,25 @@ class App:
         """Hermes's session store for this profile: ``<HERMES_HOME>/state.db``."""
         return self.data_dir.parent.parent / "state.db"
 
-    def student_client(self) -> StudentClient:
+    def student_client(self, model_id: str | None = None) -> StudentClient:
+        from .serve import resolve_endpoint
         s = self.settings()
-        return StudentClient(s.student_endpoint, timeout_s=s.student_timeout_s)
+        return StudentClient(resolve_endpoint(s.student_endpoint, model_id), timeout_s=s.student_timeout_s)
+
+    def serve_student(self, student_id: str) -> tuple[bool, str]:
+        """Make a student available to the local model server: already listed, or load it into Ollama."""
+        from . import serve
+        st = self.store.one("SELECT * FROM students WHERE id=?", (student_id,))
+        if st is None:
+            return False, "unknown student"
+        from .student import model_matches
+        if any(model_matches(m, st["model_id"]) for m in self.student_client(st["model_id"]).available_models()):
+            return True, "already loaded"
+        ok, msg = serve.load_into_ollama(Path(st["gguf_path"]), st["model_id"])
+        serve.forget()
+        if ok:
+            self.broadcast("student.served", {"student": student_id})
+        return ok, msg
 
     # Judge
     def judge(self) -> Callable[[str, str, str], str | None] | None:
@@ -204,6 +220,9 @@ class App:
                 pipeline.register_student(self.store, job_id=job_id, family_id=row["family_id"],
                                           base_model=params["base"], gguf_path=path, sha256=row["sha256"] or "")
                 self.broadcast("student.ready", {"job": job_id, "path": str(path)})
+                st = self.store.one("SELECT id FROM students WHERE job_id=?", (job_id,))
+                if st and params.get("backend") != "dry-run":  # load it for the user, in the background
+                    threading.Thread(target=self.serve_student, args=(st["id"],), daemon=True).start()
         return row
 
     def evaluate(self, student_id: str, *, limit: int | None = None) -> dict[str, Any]:
@@ -215,11 +234,18 @@ class App:
         ds_id = job["dataset_id"] if job else self.store.scalar(
             "SELECT id FROM datasets WHERE family_ids LIKE ? ORDER BY created_at DESC LIMIT 1",
             (f'%"{st["family_id"]}"%',))
-        client = self.student_client()
-        if st["model_id"] not in client.available_models():
-            raise RuntimeError(
-                f"the local model server doesn't list '{st['model_id']}' yet. In Hermes Desktop open "
-                f"Settings → Providers → Local Models → Add model file and pick {st['gguf_path']}")
+        from .student import model_matches
+
+        def listed(c: StudentClient) -> bool:
+            return any(model_matches(m, st["model_id"]) for m in c.available_models())
+        client = self.student_client(st["model_id"])
+        if not listed(client):
+            ok, msg = self.serve_student(student_id)
+            client = self.student_client(st["model_id"])
+            if not listed(client):
+                raise RuntimeError(
+                    f"the local model server doesn't list '{st['model_id']}' ({msg}). Install Ollama, or load "
+                    f"{st['gguf_path']} into any OpenAI-compatible server and set student_endpoint to it")
 
         def progress(i: int, n: int) -> None:
             if i == n or i % 5 == 0:

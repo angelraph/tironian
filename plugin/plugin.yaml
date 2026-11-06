@@ -47,7 +47,7 @@ config_schema:
   min_family_turns: {type: int, default: 25}
   route_confidence_min: {type: float, default: 0.55}
   route_margin_min: {type: float, default: 0.10}
-  student_endpoint: {type: str, default: "http://127.0.0.1:8080/v1", label: "Student server", description: "Hermes's local model runtime by default; any OpenAI-compatible server works."}
+  student_endpoint: {type: str, default: "http://127.0.0.1:8080/v1", label: "Student server", description: "Hermes's local model runtime by default, or Ollama when only Ollama has the model; any OpenAI-compatible server works."}
   student_timeout_s: {type: int, default: 25}
   max_context_tokens: {type: int, default: 3072}
   teacher_usd_per_mtok_in: {type: float, default: 3.0, description: "Used only when your provider doesn't report cost."}

@@ -62,7 +62,10 @@ class StudentClient:
         latency = int((time.monotonic() - started) * 1000)
         try:
             choice = data["choices"][0]
-            text = choice["message"].get("content") or ""
+            msg = choice["message"]
+            # Ollama files a Qwen3 reply under "reasoning" when the prompt opens a think block,
+            # even an empty one. The block is pre-filled and closed, so that text is the answer.
+            text = msg.get("content") or msg.get("reasoning") or msg.get("reasoning_content") or ""
             if choice.get("finish_reason") == "length":
                 return StudentReply(False, text, data.get("model", ""), latency, error="truncated")
         except (KeyError, IndexError, TypeError, AttributeError):
@@ -87,6 +90,8 @@ def model_matches(served: str, wanted: str) -> bool:
     if not served:
         return True  # some servers omit the field; the endpoint itself is the student's
     s = served.replace("\\", "/").lower()
+    if s.endswith(":latest"):  # Ollama's default tag
+        s = s[: -len(":latest")]
     w = wanted.lower()
     return s == w or s.endswith("/" + w) or s.endswith("/" + w + ".gguf") or s == w + ".gguf"
 

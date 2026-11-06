@@ -35,8 +35,10 @@ def _follow(app: Any, job_id: str) -> int:
                 st = app.store.one("SELECT * FROM students WHERE job_id=?", (job_id,))
                 if st:
                     _p(f"\nStudent ready: {st['gguf_path']}")
-                    _p("Load it: Hermes Desktop → Settings → Providers → Local Models → Add model file,")
-                    _p(f"then run: hermes tironian eval {st['id']}")
+                    ok, msg = app.serve_student(st["id"])
+                    _p(f"Local model server: {msg}" if ok else
+                       f"Couldn't load it automatically ({msg}). Load the file into any OpenAI-compatible server.")
+                    _p(f"Next: hermes tironian eval {st['id']}")
             return 0 if row["status"] == "done" else 1
         time.sleep(3)
 

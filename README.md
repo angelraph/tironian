@@ -68,8 +68,10 @@ Put your Modal token in Settings, Plugins, Tironian, or add `MODAL_TOKEN_ID` and
 $1.00), which Tironian enforces as a timeout on the GPU job. To train on your own GPU instead,
 set `train_backend: local` and run `hermes tironian trainer setup --local`.
 
-When training is done, load the model in Hermes Desktop under Settings, Providers, Local
-Models, Add model file. Tironian prints the path. Then:
+When training is done, Tironian loads the model for you. If you run Ollama, it registers the
+model there with the same prompt format it was trained on. If Hermes's own local model server
+is running, that works too, and you can point `student_endpoint` at any other OpenAI-compatible
+server. Then:
 
 ```bash
 hermes tironian eval <student>       # test it on held-out steps from your own sessions
@@ -115,7 +117,8 @@ card numbers, IBANs; your home folder and login name. A step with more than five
 or personal details is never used for training.
 
 **Network.** Nothing during normal use. The router only talks to `student_endpoint`, which is
-Hermes's local model server at `http://127.0.0.1:8080/v1` by default. Only when you start a
+Hermes's local model server at `http://127.0.0.1:8080/v1` by default, or Ollama on
+`http://127.0.0.1:11434/v1` when only Ollama has the model. Both stay on your machine. Only when you start a
 training run does Tironian's separate trainer process upload that family's masked training set
 to a private Volume in your own Modal account, train there, download the model and delete the
 job's files from the Volume. The optional judge, off by default, sends held-out examples to

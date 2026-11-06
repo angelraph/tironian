@@ -68,6 +68,16 @@ def test_live_student_serves_valid_tool_call(app_factory, llama):
     assert app.store.scalar("SELECT outcome FROM routes") == "served"
 
 
+def test_ollama_reply_in_reasoning_field_is_served(app_factory, llama):
+    """Found live: Ollama put the student's whole answer under "reasoning" and left content empty."""
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    llama.replies = [(render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "ls"}'}}]),)]
+    t = Teacher()
+    resp = run_turn(app, "what's using disk space in ~/Downloads", t)
+    assert t.calls == 0 and resp.choices[0].message.tool_calls[0].function.name == "terminal"
+
+
 @pytest.mark.parametrize("reply", [
     "<tool_call>{broken</tool_call>",                                   # malformed JSON
     render_target("", [{"function": {"name": "rm_everything", "arguments": "{}"}}]),   # tool not offered

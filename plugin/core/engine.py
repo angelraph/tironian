@@ -111,7 +111,8 @@ class Engine:
     def _student(self, s: Settings) -> StudentClient:
         if self.student_factory:
             return self.student_factory(s)
-        return StudentClient(s.student_endpoint, timeout_s=s.student_timeout_s)
+        from .serve import resolve_endpoint
+        return StudentClient(resolve_endpoint(s.student_endpoint), timeout_s=s.student_timeout_s)
 
     def _turn(self, turn_id: str | None) -> TurnState | None:
         if not turn_id:

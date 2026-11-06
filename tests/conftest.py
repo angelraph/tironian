@@ -88,7 +88,9 @@ class FakeLlama:
                     self.send_response(reply)
                     self.end_headers()
                     return
-                body = json.dumps({"model": outer.model, "choices": [{"message": {"content": reply},
+                # A tuple reply imitates Ollama: the answer under "reasoning", content empty.
+                message = {"content": "", "reasoning": reply[0]} if isinstance(reply, tuple) else {"content": reply}
+                body = json.dumps({"model": outer.model, "choices": [{"message": message,
                                    "finish_reason": "stop"}], "usage": {"prompt_tokens": 10, "completion_tokens": 5}}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

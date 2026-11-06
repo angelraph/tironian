@@ -107,6 +107,8 @@ def start(store: Store, data_dir: Path, s: Settings, *, dataset_id: str, family_
     backend = backend or s.train_backend
     if backend != "dry-run" and not sidecar_ready(data_dir):
         raise RuntimeError("trainer not set up yet: run `hermes tironian trainer setup`")
+    for r in store.q("SELECT id FROM jobs WHERE status NOT IN ('done','failed','cancelled')"):
+        reconcile(store, data_dir, r["id"])   # a driver that died must not block new runs
     running = store.scalar("SELECT COUNT(*) FROM jobs WHERE status NOT IN ('done','failed','cancelled')", (), 0)
     if running:
         raise RuntimeError("a training job is already running")
@@ -142,7 +144,52 @@ def _spawn(data_dir: Path, jdir: Path, secrets: dict[str, str], *, dry: bool) ->
         kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | NO_WINDOW
     else:
         kwargs["start_new_session"] = True
-    subprocess.Popen([py, str(TRAINER_DIR / "driver.py"), "--job-dir", str(jdir)], **kwargs)
+    proc = subprocess.Popen([py, str(TRAINER_DIR / "driver.py"), "--job-dir", str(jdir)], **kwargs)
+    (jdir / "driver.pid").write_text(str(proc.pid))
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+        k32.CloseHandle(h)
+        return bool(ok) and code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _driver_gone(jdir: Path, params: dict[str, Any], last_t: float) -> bool:
+    """True when the driver has stopped without writing a final state, so the job would
+    otherwise look busy forever and block every later run."""
+    pid_file = jdir / "driver.pid"
+    if pid_file.exists():
+        try:
+            return not _pid_alive(int(pid_file.read_text().strip() or 0))
+        except (OSError, ValueError):
+            return False
+    # Jobs started before the pid was recorded: silent for longer than the run could last.
+    return time.time() - last_t > float(params.get("timeout_s") or 3600) + 900
+
+
+def _log_tail(jdir: Path) -> str:
+    try:
+        lines = [x.strip() for x in (jdir / "driver.log").read_text(encoding="utf-8", errors="replace").splitlines()]
+    except OSError:
+        return ""
+    lines = [x for x in lines if x and "DeprecationWarning" not in x and "set_event_loop_policy" not in x]
+    return lines[-1][:300] if lines else ""
 
 
 def check_modal(data_dir: Path, secrets: dict[str, str]) -> tuple[bool, str]:
@@ -186,7 +233,17 @@ def reconcile(store: Store, data_dir: Path, job_id: str) -> dict[str, Any] | Non
         return None
     if row["status"] in TERMINAL:
         return dict(row)
-    recs = read_status(data_dir / "jobs" / job_id)
+    jdir = data_dir / "jobs" / job_id
+    recs = read_status(jdir)
+    params = json.loads(row["params_json"] or "{}")
+    last_t = recs[-1].get("t", row["started_at"]) if recs else row["started_at"]
+    if (not recs or recs[-1].get("state") not in TERMINAL) and _driver_gone(jdir, params, float(last_t or 0)):
+        why = _log_tail(jdir) or "no details in driver.log"
+        if (jdir / "cancel").exists():
+            recs.append({"t": time.time(), "state": "cancelled", "progress": 1.0, "message": "cancelled"})
+        else:
+            recs.append({"t": time.time(), "state": "failed", "progress": 1.0,
+                         "message": f"the trainer stopped without finishing: {why}"})
     if not recs:
         return dict(row)
     last = recs[-1]

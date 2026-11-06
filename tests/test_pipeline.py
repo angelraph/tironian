@@ -100,6 +100,24 @@ def test_end_to_end(app_factory, llama, tmp_path):
     assert "not yet" in msg
 
 
+def test_dead_driver_fails_the_job_and_frees_the_trainer(app_factory, tmp_path):
+    """Found live: the driver died mid-export without a final line and the job blocked every new run."""
+    app = app_factory()
+    jdir = app.data_dir / "jobs" / "job-dead"
+    jdir.mkdir(parents=True)
+    (jdir / "status.jsonl").write_text(json.dumps({"t": time.time(), "state": "exporting", "progress": 0.82,
+                                                   "message": "merging"}) + "\n")
+    (jdir / "driver.log").write_text("DeprecationWarning: noise\nGGUF export produced no file\n")
+    (jdir / "driver.pid").write_text("999999")  # no such process
+    app.store.upsert("jobs", {"id": "job-dead", "kind": "train", "backend": "modal", "status": "exporting",
+                              "remote_id": None, "dataset_id": "d", "family_id": "f", "params_json": "{}",
+                              "progress": 0.82, "message": "", "cost_est_usd": 0.1, "artifact_path": None,
+                              "sha256": None, "error": None, "started_at": time.time(), "ended_at": None})
+    row = jobs.reconcile(app.store, app.data_dir, "job-dead")
+    assert row["status"] == "failed" and "GGUF export produced no file" in row["error"]
+    assert jobs.active_job(app.store) is None
+
+
 def test_bad_student_fails_gate(app_factory, llama, tmp_path):
     app = app_factory(student_endpoint=llama.url, min_eval_n=5)
     make_state_db(app.state_db)

@@ -78,7 +78,7 @@ def run(data: Path, base: str, out_dir: Path, *, epochs: float = 2.0, seed: int 
     out_dir.mkdir(parents=True, exist_ok=True)
     examples = load_examples(data)
     if len(examples) < 8:
-        raise SystemExit(f"only {len(examples)} training examples; need at least 8")
+        raise RuntimeError(f"only {len(examples)} training examples; need at least 8")
     progress("loading", 0.02, f"loading {base}")
 
     from unsloth import FastLanguageModel  # noqa: E402  (heavy; import after arg checks)
@@ -116,10 +116,15 @@ def run(data: Path, base: str, out_dir: Path, *, epochs: float = 2.0, seed: int 
     progress("exporting", 0.82, f"merging and quantizing to {quant.upper()} GGUF")
     gguf_dir = out_dir / "gguf"
     model.save_pretrained_gguf(str(gguf_dir), tokenizer, quantization_method=quant)
-    ggufs = sorted(gguf_dir.rglob("*.gguf"), key=lambda p: p.stat().st_size, reverse=True)
-    ggufs = [g for g in ggufs if "mmproj" not in g.name.lower()]
+    # Unsloth has written into the folder it was given and, in newer releases, into a sibling
+    # "<folder>_gguf". Look in both, and anywhere else under the output folder.
+    found = {p for d in (gguf_dir, Path(f"{gguf_dir}_gguf"), out_dir) if d.exists() for p in d.rglob("*.gguf")}
+    ggufs = sorted((g for g in found if "mmproj" not in g.name.lower()), key=lambda p: p.stat().st_size, reverse=True)
+    # A full-precision copy may sit next to the quantized one; the quantized one is the student.
+    ggufs = [g for g in ggufs if quant.upper() in g.name.upper()] or ggufs
     if not ggufs:
-        raise SystemExit("GGUF export produced no file")
+        seen = sorted(str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file())[:40]
+        raise RuntimeError(f"GGUF export produced no file; output folder holds: {seen}")
     final = out_dir / f"{name}.gguf"
     os.replace(ggufs[0], final)
     h = hashlib.sha256()

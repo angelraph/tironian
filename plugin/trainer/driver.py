@@ -159,7 +159,7 @@ def run_modal(job: Job) -> int:
             pass
         job.finish(tmp)
         return 0
-    except Exception as exc:  # report, never hang
+    except BaseException as exc:  # report, never hang. A remote SystemExit arrives here too.
         job.emit("failed", 1.0, f"{type(exc).__name__}: {exc}"[:500], remote_id=remote_id)
         return 1
 
@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
     backend = job.params.get("backend", "modal")
     try:
         return {"modal": run_modal, "local": run_local, "dry-run": run_dry}[backend](job)
-    except Exception as exc:
+    except BaseException as exc:
         job.emit("failed", 1.0, f"{type(exc).__name__}: {exc}"[:500])
         return 1
 

@@ -7,7 +7,7 @@ only, survives Hermes restarts (any process can reconcile a job from its files),
 crash in the training stack can never take an agent turn down with it.
 
 The sidecar is created only by an explicit ``hermes tironian trainer setup`` (it installs the
-``modal`` client from PyPI). Training is only ever started by an explicit user action — never
+``modal`` client from PyPI). Training is only ever started by an explicit user action, never
 from cron, the gateway, or a model turn.
 """
 

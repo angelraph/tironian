@@ -44,7 +44,7 @@ def est_tokens(text: str) -> int:
     return int(len(text) / CHARS_PER_TOKEN) + 1
 
 
-# --- tools ------------------------------------------------------------------------------------
+# Tools
 
 def tool_name(tool: dict[str, Any]) -> str:
     fn = tool.get("function") if isinstance(tool.get("function"), dict) else tool
@@ -72,7 +72,7 @@ def select_tools(tools: Sequence[dict[str, Any]], names: Iterable[str]) -> list[
     return [t for t in tools if tool_name(t) in wanted]
 
 
-# --- messages ---------------------------------------------------------------------------------
+# Messages
 
 def _text_of(content: Any) -> tuple[str, bool]:
     """Flatten OpenAI content (str or parts). Returns (text, had_image)."""
@@ -193,7 +193,7 @@ def compact_messages(messages: Sequence[dict[str, Any]], tools: Sequence[dict[st
     return Compact(msgs, had_image, truncated, used + est_tokens(system), [tool_name(t) for t in tools])
 
 
-# --- parsing student output -------------------------------------------------------------------
+# Parsing student output
 
 @dataclass
 class Parsed:
@@ -233,7 +233,7 @@ def parse_output(text: str) -> Parsed:
     return Parsed(True, content, calls)
 
 
-# --- minimal JSON-schema validation for tool arguments ----------------------------------------
+# Minimal JSON-schema validation for tool arguments
 
 _TYPES: dict[str, tuple[type, ...]] = {
     "string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,),
@@ -278,7 +278,7 @@ def tool_schema_map(tools: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]
     return out
 
 
-# --- ShareGPT export --------------------------------------------------------------------------
+# ShareGPT export
 
 _ROLE_TO_FROM = {"system": "system", "user": "human", "assistant": "gpt"}
 

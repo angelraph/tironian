@@ -97,7 +97,7 @@ class App:
     def reload_settings(self) -> None:
         self._settings = None
 
-    # ------------------------------------------------------------------ paths
+    # Paths
     @property
     def state_db(self) -> Path:
         """Hermes's session store for this profile: ``<HERMES_HOME>/state.db``."""
@@ -107,7 +107,7 @@ class App:
         s = self.settings()
         return StudentClient(s.student_endpoint, timeout_s=s.student_timeout_s)
 
-    # ------------------------------------------------------------------ judge
+    # Judge
     def judge(self) -> Callable[[str, str, str], str | None] | None:
         s = self.settings()
         if not s.judge_enabled or self.llm is None:
@@ -137,7 +137,7 @@ class App:
                 return None
         return ask
 
-    # ------------------------------------------------------------------ first run
+    # First run
     def first_run(self) -> dict[str, Any] | None:
         """Import history once (read-only) and build families, in the background."""
         if self.store.meta_get("first_import_done"):
@@ -171,7 +171,7 @@ class App:
         threading.Thread(target=run, name=f"tironian-{name}", daemon=True).start()
         return {"started": True}
 
-    # ------------------------------------------------------------------ training flow
+    # Training flow
     def modal_secrets(self) -> dict[str, str]:
         return {k: v for k in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if (v := self.secret(k) or "")}
 

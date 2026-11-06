@@ -1,37 +1,39 @@
 # Tironian
 
-**Your own small model, learned from your own Hermes work.**
+A Hermes Agent plugin that trains a small local model on the work you already do with Hermes,
+tests it against your own past sessions, and lets it take over the routine requests it has
+proven it can handle.
 
-Tironian is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin that closes the loop
-between how you actually use Hermes and a personal, local model:
+The name comes from Tiro, Cicero's secretary. He learned his master's work well enough to
+invent a shorthand for it and keep it going.
 
-1. **Captures** every model step Hermes takes, redacting secrets and personal data *before*
-   anything is stored.
-2. **Grades** every turn from what really happened — tool failures, exit codes, corrections,
-   repeats, approvals, interrupts, your `/tironian good|bad` — never from the model's opinion of itself.
-3. **Finds recurring tasks** ("what's using disk space in X", "count the .pdf files in Y"),
-   deterministically.
-4. **Fine-tunes a small model per task family** (Qwen3 1.7B LoRA → quantized GGUF) on a rented GPU
-   in *your* Modal account (~$0.30 a run, hard-capped) or on your own NVIDIA GPU.
-5. **Proves it** on held-out steps from your own sessions — sessions it never saw in training — and
-   promotes it only if the *lower* bound of the 95% confidence interval on its pass rate clears 85%.
-6. **Routes** matching requests to it through Hermes's local model runtime. Every answer is
-   validated (well-formed, a tool the request actually offers, schema-valid arguments); anything
-   off, and your own model answers instead — silently. A failed or blocked step hands the rest of
-   the turn back to your model.
+## The idea
 
-The result: the routine part of your work gets faster, cheaper, private and offline-capable,
-week after week — and it can never get worse than what you have today.
+I noticed that a lot of what I ask Hermes is the same handful of things in different words:
+which files are eating my disk, how many PDFs are in some folder, what changed recently. Each
+time, a large hosted model does the job, and the whole exchange is thrown away afterwards.
 
-> Named after Tiro, Cicero's secretary, who learned his master's work so well that he invented
-> shorthand to carry it forward.
+Hermes already has the two pieces needed to do better. It records conversations in Nous's own
+Hermes function calling format, and it can run GGUF models locally through its managed llama.cpp
+runtime. Tironian connects them:
 
-## Why
+1. It records each model step Hermes takes. Secrets and personal details are masked before
+   anything is written to disk.
+2. It grades each turn from what actually happened: did the commands succeed, did you correct
+   it or ask again, did you deny an approval, did you mark it with `/tironian good` or `bad`.
+3. It groups recurring requests into task families. This part is plain, deterministic code, so
+   the same history always gives the same families.
+4. For a family with enough good examples, it fine-tunes a small model (Qwen3 1.7B, LoRA,
+   exported as a quantized GGUF). Training runs on a GPU in your own Modal account, about
+   $0.30 a run with a hard cap, or on your own NVIDIA card.
+5. It tests that model on steps from sessions it never saw during training. The model is only
+   promoted if the lower end of the 95% confidence interval on its pass rate is at least 85%.
+6. Once promoted, matching requests go to the small model. Its answer has to parse, call only
+   tools the request actually offers, and pass those tools' argument schemas. If any of that
+   fails, your usual model answers instead and you don't see the difference.
 
-Every Hermes turn is training data that is thrown away. Hermes already writes trajectories in
-Nous's Hermes function-calling format and already runs local GGUF models through its managed
-llama.cpp runtime. Tironian is the missing link between the two: a data flywheel that turns
-*your* usage into *your* model, with an evaluation gate strict enough that you can trust it.
+The goal is simple: routine requests get faster, cheaper and private, and nothing gets worse
+than it is today.
 
 ## Install
 
@@ -40,100 +42,110 @@ hermes plugins install angelraph/tironian
 hermes plugins enable tironian
 ```
 
-Then, in any Hermes session:
+Then in any Hermes session:
 
 ```
-/tironian report        what's recurring in your history and what it costs
-/tironian families      task families and what each still needs
-/tironian               status: learned, served locally, saved
+/tironian report      what keeps coming up in your history, and what it costs
+/tironian families    the task families and what each one still needs
+/tironian             current status
 ```
 
-Tironian reads your existing Hermes history **read-only** on first use, so the report has
-something to show in the first minute — no keys, no GPU, no spend.
+On first use Tironian reads your existing Hermes history (read only), so the report already has
+something in it. That step needs no keys, no GPU and costs nothing.
 
-## Train your first student
+## Training a model
 
 ```bash
-hermes tironian trainer setup          # creates Tironian's own venv with the Modal client
-hermes tironian trainer check          # verifies your Modal token (no compute, no cost)
+hermes tironian trainer setup        # creates Tironian's own venv with the Modal client
+hermes tironian trainer check        # checks your Modal token; uses no compute
 hermes tironian train <family> --follow
 ```
 
-Add your Modal token in **Settings → Plugins → Tironian** (or as `MODAL_TOKEN_ID` /
-`MODAL_TOKEN_SECRET` in Hermes's `.env`). Modal's free Starter plan covers many runs; each run is
-capped by `max_usd_per_run` (default $1.00), enforced as a GPU timeout. Prefer your own GPU? Set
-`train_backend: local` and run `hermes tironian trainer setup --local`.
+Put your Modal token in Settings, Plugins, Tironian, or add `MODAL_TOKEN_ID` and
+`MODAL_TOKEN_SECRET` to Hermes's `.env`. Each run is limited by `max_usd_per_run` (default
+$1.00), which Tironian enforces as a timeout on the GPU job. To train on your own GPU instead,
+set `train_backend: local` and run `hermes tironian trainer setup --local`.
 
-When training finishes, load the student — Hermes Desktop → **Settings → Providers → Local
-Models → Add model file** (the path is printed) — then:
+When training is done, load the model in Hermes Desktop under Settings, Providers, Local
+Models, Add model file. Tironian prints the path. Then:
 
 ```bash
-hermes tironian eval <student>         # held-out test on your own sessions; shows the gate verdict
-hermes tironian shadow <family>        # answers in the background, compared with your model
-hermes tironian promote <family>       # once shadow agreement is high enough
+hermes tironian eval <student>       # test it on held-out steps from your own sessions
+hermes tironian shadow <family>      # it answers in the background and gets compared
+hermes tironian promote <family>     # after it has agreed with your model often enough
 ```
 
-and turn on **Let promoted students answer** in the plugin settings.
+Finally, switch on "Let promoted students answer" in the plugin settings.
 
-## Guarantees
+## What it promises
 
-- **Never worse than baseline.** Your model's call is made at most once per request; any
-  Tironian error before it falls through to your model; any error after it returns your model's
-  answer. Hermes's own middleware is fail-open as well.
-- **Validated or not used.** A student's answer must parse, call only tools the request offers,
-  and pass each tool's argument schema. Otherwise your model answers.
-- **Sticky hand-back.** After one fallback, or any failed or blocked tool step, your model finishes
-  the turn.
-- **Approvals still apply.** Student tool calls go through the same Hermes guardrails and
-  approvals as your model's.
-- **Auto-demotion.** A live student whose fallback rate exceeds 10% (over the last 50) or that you
-  mark bad twice drops back to shadow mode.
-- **Students never learn from students.** Only steps your own model produced, in turns graded
-  good, are ever trained on.
+- Your normal model is called at most once per request. If something inside Tironian fails
+  before that call, the request goes to your model unchanged. If something fails after it,
+  your model's answer is returned.
+- A small model's answer is only used if it parses, uses an offered tool, and passes that
+  tool's schema.
+- After one fallback in a turn, or after any tool step fails or is blocked, your model finishes
+  the turn. Recovering from a failed step is exactly what a small model is worst at.
+- Hermes's own guardrails and approvals apply to the small model's tool calls the same way they
+  apply to your model's.
+- A live model drops back to shadow mode if more than 10% of its last 50 requests fell back,
+  or if you mark two of its answers as bad.
+- Only steps your own model produced, in turns graded good, are used for training. A small
+  model never learns from another small model.
 
-## Disclosure (catalog rule 13)
+## What it reads, stores and sends
 
-- **Reads outside its own data:** this profile's `state.db`, **read-only** (`mode=ro`), once on first
-  use and on `hermes tironian import`, to grade past sessions. Nothing is written to it.
-- **Stores:** a SQLite database and job folders under `<HERMES_HOME>/plugin-data/tironian/`:
-  redacted request contexts and responses, tool outcomes, grades, datasets, trained GGUF files.
-  Captured contexts older than `retention_days` (90) are dropped. Deleting a session in Hermes
-  deletes it here; `hermes tironian purge` deletes everything; `/tironian off` stops capture for a
-  conversation and excludes what was already captured.
-- **Redaction before storage:** API keys and tokens (OpenAI, Anthropic, OpenRouter, GitHub, AWS,
-  Slack, Google, Stripe, Hugging Face, Modal), JWTs, private keys, bearer tokens, URL credentials,
-  `password=`-style assignments, high-entropy strings; emails, phone numbers, card numbers (Luhn),
-  IBANs; your home folder and login name. Steps with more than 5 sensitive masks are never trained on.
-- **Network:** none during normal use. The router talks only to `student_endpoint`
-  (default `http://127.0.0.1:8080/v1`, Hermes's local model runtime). **Only when you start
-  training** does Tironian's separate trainer process upload that family's redacted training set
-  to a private Volume in **your own Modal account**, run the job there, download the trained model,
-  and delete the job's files from the Volume. The optional LLM judge (off by default) sends
-  held-out examples to the model you assign to the "Tironian judge" auxiliary slot.
-- **Processes and installs:** `hermes tironian trainer setup` (explicit) creates a venv under the
-  plugin data folder and installs the `modal` client from PyPI (`--local` also installs the
-  training stack). Training runs as a detached process in that venv; it is only ever started by
-  you — never by cron, the gateway, or a model turn. Shadow mode uses one short-lived background
-  thread at a time.
-- **Credentials:** the Modal token is read only through Hermes's secret store and passed only to
-  the trainer process's environment. It is never written to disk by Tironian.
-- **Telemetry:** none.
+This is the disclosure the Hermes plugin catalog asks for.
 
-## How it works
+**Reads.** Your profile's `state.db`, opened read only, on first use and when you run
+`hermes tironian import`. Nothing is written to it.
 
-| Piece | Where |
+**Stores.** A SQLite database and job folders in `<HERMES_HOME>/plugin-data/tironian/`. That
+includes masked request contexts and responses, tool results, grades, datasets and trained GGUF
+files. Contexts older than `retention_days` (90 by default) are dropped. Deleting a session in
+Hermes deletes it here too. `hermes tironian purge` deletes everything, and `/tironian off`
+stops recording in the current conversation and excludes what was already recorded.
+
+**Masks before storing.** API keys and tokens (OpenAI, Anthropic, OpenRouter, GitHub, AWS,
+Slack, Google, Stripe, Hugging Face, Modal), JWTs, private keys, bearer tokens, passwords in
+URLs, `password=` style values and other long random strings; email addresses, phone numbers,
+card numbers, IBANs; your home folder and login name. A step with more than five masked secrets
+or personal details is never used for training.
+
+**Network.** Nothing during normal use. The router only talks to `student_endpoint`, which is
+Hermes's local model server at `http://127.0.0.1:8080/v1` by default. Only when you start a
+training run does Tironian's separate trainer process upload that family's masked training set
+to a private Volume in your own Modal account, train there, download the model and delete the
+job's files from the Volume. The optional judge, off by default, sends held-out examples to
+whichever model you assign to the "Tironian judge" slot.
+
+**Processes and installs.** `hermes tironian trainer setup` creates a venv inside the plugin's
+data folder and installs the `modal` client from PyPI (`--local` also installs the training
+libraries). Training runs as a separate process in that venv, and only when you start it. Cron
+jobs, the gateway and model turns never start training. Shadow mode uses one short background
+thread at a time.
+
+**Credentials.** The Modal token is read through Hermes's secret store and passed only to the
+trainer process. Tironian never writes it to disk.
+
+**Telemetry.** None.
+
+## Where things are
+
+| Part | File |
 |---|---|
-| Capture + live routing (`llm_execution` middleware) and hooks | `plugin/core/engine.py` |
-| Redaction | `plugin/core/redact.py` |
-| Grading | `plugin/core/grade.py` |
-| Task families (deterministic clustering) | `plugin/core/families.py` |
-| Hermes function-calling format (one path for training *and* serving) | `plugin/core/hermes_format.py` |
-| Datasets, held-out evaluation, promotion gate | `plugin/core/pipeline.py`, `plugin/core/evaluate.py` |
-| Training (Unsloth LoRA → GGUF, Modal or local CUDA) | `plugin/trainer/` |
+| Recording and routing (the `llm_execution` middleware) and hooks | `plugin/core/engine.py` |
+| Masking secrets and personal details | `plugin/core/redact.py` |
+| Grading turns | `plugin/core/grade.py` |
+| Task families | `plugin/core/families.py` |
+| Hermes function calling format, shared by training and serving | `plugin/core/hermes_format.py` |
+| Datasets, held-out tests, the promotion gate | `plugin/core/pipeline.py`, `plugin/core/evaluate.py` |
+| Training (Unsloth LoRA to GGUF, on Modal or a local GPU) | `plugin/trainer/` |
 
-Uses only public plugin surfaces: hooks, `llm_execution` middleware, a slash command, a CLI
-command, an auxiliary model slot, plugin storage and the secret store. No core patches. The
-in-process plugin is standard-library only.
+Tironian only uses public plugin surfaces: hooks, the `llm_execution` middleware, one slash
+command, one CLI command, an auxiliary model slot, plugin storage and the secret store. It
+doesn't patch Hermes, and the part that runs inside Hermes uses only the Python standard
+library.
 
 ## Development
 
@@ -143,9 +155,9 @@ hermes plugins validate plugin
 hermes plugins doctor plugin --ci
 ```
 
-`scripts/seed_sessions.py` runs real, read-only Hermes sessions to bootstrap a family for
-development and the demo (the demo's student was trained on sessions seeded this way, with the
-author's own model as the teacher).
+`scripts/seed_sessions.py` runs real, read-only Hermes sessions to give a new task family
+enough examples. The model in the demo was trained on sessions created this way, with my own
+Hermes model as the teacher.
 
 ## License
 

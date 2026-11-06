@@ -61,7 +61,7 @@ def jaccard(a: frozenset[str] | set[str], b: frozenset[str] | set[str]) -> float
     return inter / (len(a) + len(b) - inter) if inter else 0.0
 
 
-# --- MinHash prototypes (cheap, stable similarity at route time) ---------------------------
+# MinHash prototypes (cheap, stable similarity at route time)
 
 _NUM_PERM = 64
 _MASK = (1 << 61) - 1
@@ -83,7 +83,7 @@ def minhash_sim(a: Sequence[int], b: Sequence[int]) -> float:
     return sum(1 for x, y in zip(a, b) if x == y) / _NUM_PERM
 
 
-# --- Clustering ------------------------------------------------------------------------------
+# Clustering
 
 @dataclass
 class Family:

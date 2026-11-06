@@ -1,9 +1,9 @@
-"""Tironian — your own small model, learned from your own Hermes work.
+"""Tironian: your own small model, learned from your own Hermes work.
 
 Tironian captures every model step Hermes takes (redacted before storage), grades each turn
 from what actually happened, clusters recurring tasks into families, fine-tunes a small local
 model per family, proves it on held-out steps from your own sessions, and only then lets it
-answer matching requests — checking every answer and falling back to your model silently.
+answer matching requests, checking every answer and falling back to your model silently.
 """
 
 from __future__ import annotations

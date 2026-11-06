@@ -2,17 +2,17 @@
 
 Protocol with the plugin (``core/jobs.py``), all files inside one job directory:
 
-* ``job.json``     — parameters written by the plugin (read once).
-* ``status.jsonl`` — one JSON object per line, appended by this driver:
+* ``job.json``: parameters written by the plugin (read once).
+* ``status.jsonl``: one JSON object per line, appended by this driver:
   ``{"t", "state", "progress", "message", ...}``. States: ``queued → uploading → starting →
   loading → training → exporting → exported → downloading → done`` or ``failed`` / ``cancelled``.
-* ``cancel``       — created by the plugin to ask for cancellation.
-* ``student.gguf`` — the result, written atomically when ``done``.
+* ``cancel``: created by the plugin to ask for cancellation.
+* ``student.gguf``: the result, written atomically when ``done``.
 
 Backends: ``modal`` (default; credentials come from ``MODAL_TOKEN_ID`` / ``MODAL_TOKEN_SECRET``
 in this process's environment, passed by the plugin from Hermes's secret store and never
 written to disk), ``local`` (CUDA on this machine, same ``train_core``), and ``dry-run``
-(scripted states, no compute — used by tests and the demo rehearsal).
+(scripted states, no compute, used by tests and the demo rehearsal).
 """
 
 from __future__ import annotations

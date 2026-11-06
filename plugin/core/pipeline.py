@@ -331,7 +331,7 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
     missing = [t for t in toolset if t not in schemas]
     if missing:
         raise ValueError("no captured schema yet for tool(s) " + ", ".join(missing) +
-                         " — use Hermes once with Tironian enabled so it can see them")
+                         ". Use Hermes once with Tironian enabled so it can see them.")
     tool_schemas = [schemas[t] for t in toolset]
 
     rows = store.q(

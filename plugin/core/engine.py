@@ -95,7 +95,7 @@ class Engine:
     _lock: threading.RLock = field(default_factory=threading.RLock)
     _shadow_busy: threading.Lock = field(default_factory=threading.Lock)
 
-    # ------------------------------------------------------------------ helpers
+    # Helpers
     def _emit(self, kind: str, payload: dict[str, Any]) -> None:
         if self.on_event:
             try:
@@ -121,7 +121,7 @@ class Engine:
             return True
         return bool(platform) and platform in s.exclude_platforms
 
-    # ------------------------------------------------------------------ hooks
+    # Hooks
     def on_session_start(self, **kw: Any) -> None:
         sid = str(kw.get("session_id") or "")
         if not sid:
@@ -277,7 +277,7 @@ class Engine:
             self._maybe_demote_for_turn(tid)
         return tid
 
-    # ------------------------------------------------------------------ grading
+    # Grading
     def regrade(self, turn_id: str, *, next_user_text: str | None = None) -> None:
         row = self.store.one("SELECT * FROM turns WHERE id=?", (turn_id,))
         if row is None or row["label"] == "excluded":
@@ -298,7 +298,7 @@ class Engine:
             c.execute("UPDATE turns SET score=?, label=?, grade_json=? WHERE id=?",
                       (g.score, g.label, json.dumps({"reasons": g.reasons, "hard": g.hard_negative}), turn_id))
 
-    # ------------------------------------------------------------------ routing table
+    # Routing table
     def promoted(self, *, refresh: bool = False) -> list[PromotedFamily]:
         now = self.clock()
         if not refresh and self._promoted is not None and now - self._promoted_at < 30:
@@ -333,7 +333,7 @@ class Engine:
             return None  # the request doesn't offer the tools this student was trained with
         return chosen
 
-    # ------------------------------------------------------------------ middleware
+    # Middleware
     def llm_execution(self, **kw: Any) -> Any:
         next_call = kw["next_call"]
         request = kw.get("request")
@@ -499,7 +499,7 @@ class Engine:
         self.invalidate()
         self._emit("family.status", {"family": family_id, "status": status, "reason": reason})
 
-    # ------------------------------------------------------------------ capture
+    # Capture
     def _capture(self, kw: dict[str, Any], request: dict[str, Any], response: Any, latency_ms: int,
                  *, served_by: str) -> None:
         s = self.settings()
@@ -535,7 +535,7 @@ class Engine:
             "redaction_hits": hits, "created_at": self.clock()})
         st.call_idx += 1
 
-    # ------------------------------------------------------------------ stats
+    # Stats
     def summary(self) -> dict[str, Any]:
         q = self.store.scalar
         served = q("SELECT COUNT(*) FROM routes WHERE outcome='served'", (), 0)

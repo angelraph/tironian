@@ -1,4 +1,4 @@
-"""``hermes tironian …`` — the whole pipeline from a terminal."""
+"""``hermes tironian ...``: the whole pipeline from a terminal."""
 
 from __future__ import annotations
 
@@ -149,7 +149,7 @@ def run(args: Any) -> int:
             _p("No students yet: `hermes tironian train <family>`.")
     elif cmd == "eval":
         res = app.evaluate(args.student, limit=args.limit)
-        _p(f"{res['passed']}/{res['n']} held-out steps passed · 95% CI {res['wilson_lo']:.0%}–{res['wilson_hi']:.0%} "
+        _p(f"{res['passed']}/{res['n']} held-out steps passed · 95% CI {res['wilson_lo']:.0%} to {res['wilson_hi']:.0%} "
            f"· format valid {res['validity']:.0%} · p50 {res['p50_ms']} ms")
         _p(("GATE PASSED: " if res["gate_passed"] else "GATE NOT PASSED: ") + res["gate_reason"])
         if res["failures"]:

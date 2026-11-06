@@ -110,7 +110,7 @@ class Store:
                 self._conn.execute("INSERT INTO meta(k, v) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
             self._conn.commit()
 
-    # -- primitives --------------------------------------------------------------------------
+    # Primitives
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
         with self._lock:
@@ -157,7 +157,7 @@ class Store:
     def meta_set(self, k: str, v: str) -> None:
         self.upsert("meta", {"k": k, "v": v}, key="k")
 
-    # -- privacy -----------------------------------------------------------------------------
+    # Privacy
     def purge_session(self, session_id: str) -> int:
         """Remove every trace of a session (called when the user deletes it in Hermes)."""
         with self.tx() as c:

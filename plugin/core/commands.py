@@ -60,7 +60,7 @@ def report_text(app: App) -> str:
     ]
     if r.spend_30d_usd:
         out.append(f"Last 30 days: {_usd(r.spend_30d_usd)} model spend, {_usd(r.routine_spend_30d_usd)} of it on "
-                   f"recurring tasks — that's what a personal model can take over.")
+                   f"recurring tasks. That is the part a personal model can take over.")
     out.append("")
     out.append("Top task families:")
     for f in r.families[:8]:
@@ -154,7 +154,7 @@ def set_status(app: App, cmd: str, family_id: str) -> str:
         return f"{family_id}: shadow mode. The student answers in the background; your model still replies."
     ok, why = pipeline.shadow_ready(app.store, family_id, threshold=app.settings().promotion_threshold)
     if not ok and f["status"] != "live":
-        return f"{family_id}: not yet — {why}. It stays in shadow until then."
+        return f"{family_id}: not yet ({why}). It stays in shadow until then."
     app.engine.set_family_status(family_id, "live", reason="user")
     hint = "" if app.settings().routing_enabled else " Turn on routing in Settings → Plugins → Tironian."
     return f"{family_id}: live. Matching requests are answered by your student, checked, with silent fallback.{hint}"

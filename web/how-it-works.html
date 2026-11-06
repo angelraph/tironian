@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works · Tironian</title>
+<meta name="description" content="How Tironian captures, grades and groups your Hermes work, trains a small model per task, tests it on held-out sessions and routes requests to it with a silent fallback.">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://tironian.vercel.app/how-it-works">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tironian">
+<meta property="og:title" content="How it works · Tironian">
+<meta property="og:description" content="How Tironian captures, grades and groups your Hermes work, trains a small model per task, tests it on held-out sessions and routes requests to it with a silent fallback.">
+<meta property="og:url" content="https://tironian.vercel.app/how-it-works">
+<meta property="og:image" content="https://tironian.vercel.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tironian.vercel.app/assets/og.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/mark-32.png">
+<link rel="apple-touch-icon" href="/assets/mark-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Tironian home"><img src="/assets/mark-180.png" alt="" width="30" height="30">Tironian</a>
+    <div class="nav-wrap">
+      <nav class="nav" aria-label="Main">
+        <a href="/how-it-works" aria-current="page">How it works</a>
+        <a href="/docs">Docs</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/faq">FAQ</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+      <div class="head-actions">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/angelraph/tironian"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub <kbd>G</kbd></a>
+        <a class="btn btn-primary btn-sm" href="/docs#install">Install <kbd>I</kbd></a>
+      </div>
+    </div>
+    <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false"><span></span></button>
+  </div>
+</header>
+<main id="main"><div class="wrap doc-layout">
+  <aside class="doc-side" aria-label="On this page">
+    <h5>How it works</h5>
+    <a href="#overview">Overview</a>
+    <a href="#capture">1. Capture</a>
+    <a href="#grading">2. Grading</a>
+    <a href="#families">3. Task families</a>
+    <a href="#training">4. Training</a>
+    <a href="#gate">5. The gate</a>
+    <a href="#routing">6. Routing</a>
+    <a href="#safety">Safety contract</a>
+    <a href="#surfaces">Hermes surfaces used</a>
+    <div class="side-card">
+      <dl>
+        <dt>Version</dt><dd>0.1.0</dd>
+        <dt>Hermes</dt><dd>&ge; 0.22.3</dd>
+        <dt>Hooks</dt><dd>10</dd>
+        <dt>Middleware</dt><dd>1</dd>
+        <dt>Tests</dt><dd>54</dd>
+        <dt>License</dt><dd>MIT</dd>
+      </dl>
+    </div>
+  </aside>
+
+  <article class="prose">
+    <div class="toc-mobile"><select aria-label="Jump to section">
+      <option value="overview">Overview</option><option value="capture">1. Capture</option><option value="grading">2. Grading</option>
+      <option value="families">3. Task families</option><option value="training">4. Training</option><option value="gate">5. The gate</option>
+      <option value="routing">6. Routing</option><option value="safety">Safety contract</option><option value="surfaces">Hermes surfaces used</option>
+    </select></div>
+
+    <span class="eyebrow">How it works</span>
+    <h1 id="overview">From your sessions to a model you can trust</h1>
+    <p class="lead">Tironian is a loop with six steps. Each one is deliberately boring and checkable: plain code where plain code is enough, statistics where a decision matters, and your usual model as the backup at every point.</p>
+
+    <div class="term" style="margin:26px 0">
+<pre><span class="t-c">capture</span>  → every model step and tool run, masked, stored locally
+<span class="t-c">grade</span>    → good / bad / unknown, from what actually happened
+<span class="t-c">group</span>    → recurring requests become task families
+<span class="t-c">train</span>    → one small model per family (LoRA → GGUF)
+<span class="t-c">test</span>     → held-out steps from sessions it never saw
+<span class="t-c">route</span>    → shadow first, then live, every answer checked</pre>
+    </div>
+
+    <h2 id="capture">1. Capture</h2>
+    <p>Tironian registers one piece of <code>llm_execution</code> middleware and ten observer hooks. The middleware sees each request Hermes sends to your model and the response that comes back. The hooks report tool results, exit codes, approvals, interrupts and session boundaries.</p>
+    <p>Before anything is stored, every string goes through the redactor: API keys and tokens for the common providers, JWTs, private keys, bearer tokens, credentials inside URLs, <code>password=</code> style values and other long random strings, then email addresses, phone numbers, card numbers (checked with the Luhn algorithm), IBANs, your home folder and your login name.</p>
+    <p>Capture understands all three wire formats Hermes uses: OpenAI style chat completions, Anthropic messages and the Responses API. Everything is stored in one shape, so one exporter and one model format cover every provider.</p>
+    <div class="callout"><b>On first use</b> Tironian also reads your existing Hermes history, opened read only, so the report has something to show straight away. Sessions it already captured live are never imported twice.</div>
+
+    <h2 id="grading">2. Grading</h2>
+    <p>A model is only ever trained on turns that went well, so grading decides what Tironian learns. Every signal comes from what happened in the turn. The model's opinion of its own answer never counts.</p>
+    <table>
+      <thead><tr><th>Signal</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>Session finished normally</td><td>+0.2</td></tr>
+        <tr><td>Every tool step succeeded</td><td>+0.2</td></tr>
+        <tr><td>A tool failed or exited non-zero</td><td>−0.3 each</td></tr>
+        <tr><td>Your next message corrects it ("no", "that's wrong", "undo")</td><td>−0.5, never trained on</td></tr>
+        <tr><td>Your next message repeats the request</td><td>−0.4, never trained on</td></tr>
+        <tr><td>You thank it</td><td>+0.3</td></tr>
+        <tr><td>You move on to something else</td><td>+0.1</td></tr>
+        <tr><td>An approval was denied, or you interrupted</td><td>−0.5, never trained on</td></tr>
+        <tr><td>Thumbs up or down on a messaging app</td><td>±0.7</td></tr>
+        <tr><td><code>/tironian good</code> or <code>bad</code></td><td>overrides everything</td></tr>
+      </tbody>
+    </table>
+    <p>A turn scoring 0.3 or more with no hard negative is <b>good</b>. A turn at −0.3 or below is <b>bad</b>. Everything else is <b>unknown</b> and is left out of training. An optional judge model, off by default and limited by a daily budget, can settle unknown turns. It can never override a hard negative.</p>
+
+    <h2 id="families">3. Task families</h2>
+    <p>A family is a recurring kind of request. Students are trained and tested per family, which keeps each one small and specialised. Grouping is deterministic, so the same history always gives the same families.</p>
+    <ol>
+      <li>Each request is normalised. Paths, URLs, quoted text, numbers, file extensions and names written with a capital letter become placeholders. Common synonyms collapse to one word: <i>biggest</i>, <i>largest</i> and <i>takes the most space</i> all become <i>largest</i>.</li>
+      <li>Words that appear in most of your requests carry no information about which task it is, so they are ignored. The same list is used later when routing.</li>
+      <li>Requests are clustered in the order they happened. Each joins the most similar family or starts a new one, and a merge pass joins families that are really the same task.</li>
+    </ol>
+    <pre>"What are the 5 largest files in my Downloads folder?"
+"Show me the 10 biggest files in Videos"
+  → show the &lt;n&gt; largest files in my &lt;name&gt; folder</pre>
+    <p>On the author's own data the grouping is pure: no family mixes two different tasks. It errs on the side of splitting, because two pure families are safe and one mixed family is not.</p>
+
+    <h2 id="training">4. Training</h2>
+    <p>When a family has enough good examples, Tironian builds a dataset in Nous's Hermes function calling format, the same format Hermes uses for its own trajectories. The split into training and held-out data is done <b>by session</b>, so no conversation appears on both sides.</p>
+    <p>Each example is a short, task-specific prompt: the family's tools in the Hermes system prompt and the most recent turns that fit in about 3,000 tokens. The live router builds exactly the same prompt with exactly the same code, which removes the most common reason a distilled model fails: being served a different prompt than it learned from.</p>
+    <table>
+      <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Base model</td><td>Qwen3 1.7B (4B optional)</td></tr>
+        <tr><td>Method</td><td>LoRA, rank 16, all linear layers, loss on the answer only</td></tr>
+        <tr><td>Schedule</td><td>2 epochs, learning rate 2e-4, cosine</td></tr>
+        <tr><td>Output</td><td>Merged, quantized Q4_K_M GGUF with a SHA-256 checksum</td></tr>
+        <tr><td>Where</td><td>Modal (L4 or A10G) in your account, or your own NVIDIA GPU</td></tr>
+      </tbody>
+    </table>
+    <p>Training never runs inside Hermes. A separate process in Tironian's own environment talks to Modal and reports progress through a status file, so a Hermes restart never loses a job. The spending cap is enforced as a timeout on the GPU function.</p>
+
+    <h2 id="gate">5. The gate</h2>
+    <p>The trained model answers every held-out step, given exactly the context your model had. A step passes when:</p>
+    <ul>
+      <li>the output parses, with valid tool call JSON and no stray tags,</li>
+      <li>it takes the same kind of action (a tool call or a final answer),</li>
+      <li>it calls the same tools with arguments that pass their schemas and match yours (80% of keys equal after normalising whitespace, quotes and slashes),</li>
+      <li>for a final answer, a blind judge prefers it or calls it a tie, or without a judge, its wording overlaps yours enough.</li>
+    </ul>
+    <p>Then comes the decision. Tironian computes the <b>Wilson score interval</b> for the pass rate and looks at its <b>lower</b> end, not the average. Passing 10 of 10 sounds perfect, but the lower bound is only 72%, because 10 examples prove very little. Passing 55 of 60 gives a lower bound of 82%. The default gate needs 85%, at least 30 held-out steps and 98% format validity.</p>
+    <pre>n = 60, passed = 55
+p̂ = 0.917
+Wilson 95% interval = [0.819, 0.964]
+gate: 0.819 &lt; 0.85  →  not yet</pre>
+    <p>A model that passes moves to shadow mode. It answers real requests in the background, its answers are compared with your model's, and only when it agrees often enough can you let it answer for real.</p>
+
+    <h2 id="routing">6. Routing</h2>
+    <p>For each new request, Tironian decides in a few milliseconds whether it belongs to a promoted family. The match has to be confident and clearly better than the runner-up, the request has to offer the tools the model was trained with, and it can't contain images.</p>
+    <p>Then the small model answers through Hermes's local model runtime, and the answer is checked: it must parse, call only tools the request offers, and pass each tool's argument schema. If it does, Hermes receives it exactly as if your model had sent it, and runs its tools with the usual approvals. If not, your model answers.</p>
+
+    <h2 id="safety">Safety contract</h2>
+    <ul>
+      <li>Your model is called at most once per request.</li>
+      <li>Any error inside Tironian before that call sends the request to your model unchanged. Any error after it returns your model's answer.</li>
+      <li>After one fallback in a turn, or after a tool step fails or is blocked, your model finishes the turn.</li>
+      <li>A live model with more than 10% fallbacks over its last 50 requests, or two answers you marked bad, drops back to shadow mode by itself.</li>
+      <li>A small model's own answers are never used for training.</li>
+    </ul>
+    <p>Each of these is covered by a test, and the fallback after a blocked command was also checked on a real Hermes install: the small model made the first move, Hermes blocked its command, and the usual model finished the job.</p>
+
+    <h2 id="surfaces">Hermes surfaces used</h2>
+    <table>
+      <thead><tr><th>Surface</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>llm_execution</code> middleware</td><td>Capture and routing</td></tr>
+        <tr><td>Observer hooks (10)</td><td>Turns, tools, approvals, sessions, deletions, subagents</td></tr>
+        <tr><td><code>/tironian</code> slash command</td><td>Status, report, marks, training, promotion</td></tr>
+        <tr><td><code>hermes tironian</code> CLI</td><td>The whole pipeline from a terminal</td></tr>
+        <tr><td>Auxiliary task slot</td><td>The optional judge model</td></tr>
+        <tr><td>Plugin storage and secrets</td><td>Database, datasets, models, the Modal token</td></tr>
+        <tr><td>Desktop plugin SDK</td><td>The Tironian page and status-bar chip</td></tr>
+      </tbody>
+    </table>
+    <p>No core patches, no runtime overrides, and no packages installed into Hermes. <code>hermes plugins validate</code> passes, including its security scan.</p>
+  </article>
+</div>
+
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <img src="/assets/wordmark.png" alt="Tironian. Train, route, ship." width="160">
+        <p>A Hermes Agent plugin that turns the work you already do into a small model of your own.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="/how-it-works">How it works</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy">Privacy and safety</a>
+        <a href="/changelog">Changelog</a>
+      </div>
+      <div class="foot-col">
+        <h4>Docs</h4>
+        <a href="/docs#install">Install</a>
+        <a href="/docs#first-model">Your first model</a>
+        <a href="/docs#cli">CLI reference</a>
+        <a href="/docs#settings">Settings</a>
+        <a href="/docs#troubleshooting">Troubleshooting</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/angelraph/tironian">Source code</a>
+        <a href="https://github.com/angelraph/tironian/issues">Report a problem</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/README.md">README</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/LICENSE">MIT license</a>
+      </div>
+      <div class="foot-col">
+        <h4>Hermes</h4>
+        <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/plugins">Plugin marketplace</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/developer-guide/plugins">Plugin guide</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Named after Tiro, Cicero's secretary, who invented a shorthand to carry his master's work forward.</span>
+      <span>MIT licensed · No telemetry · Keyboard: <kbd>I</kbd> copy install <kbd>D</kbd> docs <kbd>F</kbd> FAQ <kbd>G</kbd> GitHub</span>
+    </div>
+  </div>
+</footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

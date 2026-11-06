@@ -1,0 +1,53 @@
+<!-- title: Changelog | desc: What changed in Tironian, and what was found and fixed along the way. | nav: changelog -->
+<section class="page-hero grid-bg glow">
+  <div class="wrap">
+    <span class="eyebrow">Changelog</span>
+    <h1 class="display">What changed, <span class="soft">and why.</span></h1>
+    <p class="lede">Including the bugs. Each entry links to the commits on <a class="link" href="https://github.com/angelraph/tironian/commits/master">GitHub</a>.</p>
+  </div>
+</section>
+
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="timeline">
+      <div class="entry reveal">
+        <time>Nov 6, 2026</time>
+        <div>
+          <h3>Fixes found on real data</h3>
+          <p>Before spending anything on a real training run, the whole pipeline was run against real Hermes sessions. Three problems turned up and were fixed:</p>
+          <ul>
+            <li>The trainer's environment was set up with Hermes's own Python paths visible, so it skipped installing Modal's dependencies and would have failed on its own. Every trainer call now gets a clean environment.</li>
+            <li>Sessions captured live were imported a second time from history, which could put the same conversation in both the training and the test data. They are now skipped, and earlier duplicates removed.</li>
+            <li>Grouping split one task into many small families because folder names and file types counted as differences. They are now placeholders, common synonyms are merged, and words shared by most requests are ignored.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="entry reveal">
+        <time>Nov 6, 2026</time>
+        <div>
+          <h3>Desktop page and status-bar chip</h3>
+          <p>A Tironian page in Hermes Desktop: requests learned, answered locally, saved, each task family with its test result, live training progress, and buttons to train, shadow, promote or stop a model. Training always shows the example counts and cost first.</p>
+        </div>
+      </div>
+      <div class="entry reveal">
+        <time>Nov 6, 2026</time>
+        <div>
+          <h3>Tested on a real Hermes install</h3>
+          <ul>
+            <li><code>hermes plugins validate</code> and <code>doctor</code> pass, including the security scan.</li>
+            <li>Live capture recorded every step of real streaming turns, with tool outcomes and schemas.</li>
+            <li>A small model answered a real Hermes turn through the middleware. When Hermes blocked its command, the usual model took over and finished the task.</li>
+            <li>From that test: any failed or blocked tool step now hands the rest of the turn back to your usual model.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="entry reveal">
+        <time>Nov 5, 2026</time>
+        <div>
+          <h3>0.1.0, first version</h3>
+          <p>Capture with redaction, deterministic grading, task families, the Hermes function calling exporter, training on Modal or a local GPU, the held-out test with a Wilson lower bound gate, shadow and live routing with validation and silent fallback, the <code>/tironian</code> command and the <code>hermes tironian</code> CLI. 54 tests.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

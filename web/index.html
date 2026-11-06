@@ -4,101 +4,471 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tironian</title>
-<meta name="description" content="A Hermes Agent plugin that trains a small local model on your own work, tests it on your past sessions, and lets it take over the routine requests it has proven it can handle.">
+<meta name="description" content="A Hermes Agent plugin that trains a small local model on the work you already do, tests it on your own past sessions, and lets it take over the routine requests it has proven it can handle.">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://tironian.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tironian">
 <meta property="og:title" content="Tironian">
-<meta property="og:description" content="Your own small model, learned from your own Hermes work.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23b4542d'/%3E%3Cpath d='M9 10h14M16 10v13' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<meta property="og:description" content="A Hermes Agent plugin that trains a small local model on the work you already do, tests it on your own past sessions, and lets it take over the routine requests it has proven it can handle.">
+<meta property="og:url" content="https://tironian.vercel.app/">
+<meta property="og:image" content="https://tironian.vercel.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tironian.vercel.app/assets/og.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/mark-32.png">
+<link rel="apple-touch-icon" href="/assets/mark-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
-<header class="top">
-  <div class="wrap row">
-    <a class="mark" href="/">Tironian</a>
-    <nav>
-      <a href="#how">How it works</a>
-      <a href="#promises">Promises</a>
-      <a href="#privacy">Privacy</a>
-      <a href="https://github.com/angelraph/tironian">GitHub</a>
-    </nav>
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Tironian home"><img src="/assets/mark-180.png" alt="" width="30" height="30">Tironian</a>
+    <div class="nav-wrap">
+      <nav class="nav" aria-label="Main">
+        <a href="/how-it-works">How it works</a>
+        <a href="/docs">Docs</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/faq">FAQ</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+      <div class="head-actions">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/angelraph/tironian"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub <kbd>G</kbd></a>
+        <a class="btn btn-primary btn-sm" href="/docs#install">Install <kbd>I</kbd></a>
+      </div>
+    </div>
+    <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false"><span></span></button>
   </div>
 </header>
+<main id="main"><section class="hero grid-bg glow">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">A plugin for Hermes Agent</span>
+      <h1 class="display">Your own small model, <span class="hl">learned from your work.</span></h1>
+      <p class="lede">Tironian watches the work you already do with Hermes, trains a small model on the tasks you keep repeating, tests it on your own past sessions, and only then lets it answer. When it isn't sure, your usual model answers and you never notice.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" type="button" data-copy="hermes plugins install angelraph/tironian">Copy install command <kbd>I</kbd></button>
+        <a class="btn btn-ghost" href="/docs">Read the docs <kbd>D</kbd></a>
+      </div>
+      <p class="cta-note">Free and MIT licensed. The first report needs no keys, no GPU and costs nothing.</p>
 
-<main>
-  <section class="hero wrap">
-    <p class="eyebrow">A plugin for Hermes Agent</p>
-    <h1>Your own small model, learned from your own work.</h1>
-    <p class="lede">Tironian watches the work you already do with Hermes, trains a small model on the
-      tasks you keep repeating, tests it against your own past sessions, and only then lets it answer.
-      If it is ever unsure, your usual model answers instead, and you never notice.</p>
-    <div class="install">
-      <code>hermes plugins install angelraph/tironian</code>
-      <button type="button" class="copy" data-copy="hermes plugins install angelraph/tironian">Copy</button>
+      <div class="cmd-label">Get started in Hermes</div>
+      <div class="cmd">
+        <span class="prompt">$</span><code>hermes plugins install angelraph/tironian</code>
+        <button class="copy-btn" type="button" data-copy="hermes plugins install angelraph/tironian">Copy</button>
+      </div>
+      <details class="explain">
+        <summary>What does this do?</summary>
+        <p>Hermes downloads the plugin from GitHub and adds it to your plugins. Nothing runs until you enable it with <code>hermes plugins enable tironian</code>. It installs no packages: the part that runs inside Hermes uses only the Python standard library.</p>
+      </details>
     </div>
-  </section>
 
-  <section class="wrap measured">
-    <div class="stat"><span class="num">17 s</span><span class="lbl">a routed request on the author's laptop</span></div>
-    <div class="stat"><span class="num">5 min 44 s</span><span class="lbl">the same request on the hosted model</span></div>
-    <div class="stat"><span class="num">0</span><span class="lbl">bytes Tironian sends anywhere before you start a training run</span></div>
-    <p class="small">Measured on Hermes v0.22.7 with a free Nous Portal model as the teacher. The first number
-      came from a stand-in model used to test routing; it shows the overhead Tironian adds, not the quality of a trained model.</p>
-  </section>
+    <div class="circuit" aria-label="Tironian connects your Hermes sessions, grading, training and local serving">
+      <svg class="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M50 50 H 20 V 16"/><path d="M50 50 V 12 H 50"/><path d="M50 50 H 80 V 16"/>
+        <path d="M50 50 H 88 V 50"/><path d="M50 50 H 80 V 84"/><path d="M50 50 V 88"/>
+        <path d="M50 50 H 20 V 84"/><path d="M50 50 H 12 V 50"/>
+        <path class="pulse" d="M20 16 V 50 H 50"/><path class="pulse" d="M50 50 H 80 V 84"/>
+        <path class="pulse" d="M12 50 H 50"/><path class="pulse" d="M50 50 V 88"/><path class="pulse" d="M80 16 V 50 H 50"/>
+      </svg>
+      <div class="core"><img src="/assets/mark-512.png" alt="Tironian" width="512" height="512"></div>
+      <div class="node" style="left:20%;top:16%"><b><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg></b>Your sessions</div>
+      <div class="node" style="left:50%;top:12%"><b><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg></b>Grading</div>
+      <div class="node" style="left:80%;top:16%"><b><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="12" cy="17" r="3"/></svg></b>Task families</div>
+      <div class="node" style="left:88%;top:50%"><b><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V4M16 7V4M8 20v-3M16 20v-3"/></svg></b>Modal GPU</div>
+      <div class="node" style="left:80%;top:84%"><b><svg viewBox="0 0 24 24"><path d="M4 19h16M7 15l3-4 3 2 4-6"/></svg></b>Held-out test</div>
+      <div class="node" style="left:50%;top:88%"><b><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6M9 13h6"/></svg></b>llama.cpp</div>
+      <div class="node" style="left:20%;top:84%"><b><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7z"/></svg></b>Fallback</div>
+      <div class="node" style="left:12%;top:50%"><b>H</b>Hermes Agent</div>
+    </div>
+  </div>
+</section>
 
-  <section id="how" class="wrap">
-    <h2>How it works</h2>
-    <ol class="steps">
-      <li><h3>It records what Hermes does</h3><p>Every model step and tool run, with secrets and personal details masked before anything touches the disk.</p></li>
-      <li><h3>It grades each turn from what happened</h3><p>Did the commands succeed? Did you correct it, ask again, deny an approval, or mark it with <code>/tironian bad</code>? The model's opinion of itself never counts.</p></li>
-      <li><h3>It finds the tasks you repeat</h3><p>"What is eating space in Downloads" and "which files take up the most room in Videos" end up in the same family. Plain code, so the same history always gives the same answer.</p></li>
-      <li><h3>It trains a small model per family</h3><p>Qwen3 1.7B with LoRA, exported as a quantized GGUF file. On a GPU in your own Modal account for about $0.30 with a hard cap, or free on your own NVIDIA card.</p></li>
-      <li><h3>It tests the model on sessions it never saw</h3><p>The model is promoted only if the lower end of the 95% confidence interval on its pass rate reaches 85%. A model that is merely lucky does not get through.</p></li>
-      <li><h3>It routes, and checks every answer</h3><p>Matching requests go to the small model through Hermes's local model runtime. Its answer must parse, use a tool the request offers, and pass that tool's schema. Otherwise your model answers.</p></li>
-    </ol>
-  </section>
+<div class="wrap">
+  <div class="frame hatch reveal">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="facts">
+      <span><b>0 bytes</b> sent anywhere before you train</span><i></i>
+      <span><b>about $0.30</b> per training run, hard capped</span><i></i>
+      <span>live only above an <b>85%</b> lower bound</span><i></i>
+      <span><b>54</b> tests, plus live checks on Hermes v0.22.7</span><i></i>
+      <span><b>MIT</b> licensed</span>
+    </div>
+    <div class="built-on">
+      <p>Built on open pieces you already trust</p>
+      <ul>
+        <li>Hermes Agent<small>host</small></li>
+        <li>Nous Portal<small>teacher</small></li>
+        <li>Qwen3<small>student</small></li>
+        <li>Unsloth<small>training</small></li>
+        <li>llama.cpp<small>serving</small></li>
+        <li>Modal<small>GPU</small></li>
+      </ul>
+    </div>
+  </div>
+</div>
 
-  <section id="promises" class="wrap">
-    <h2>What it promises</h2>
-    <ul class="promises">
-      <li>Your usual model is called at most once per request, and any failure inside Tironian falls through to it.</li>
-      <li>After a failed or blocked tool step, your model finishes the turn. Recovering from mistakes is where small models are weakest.</li>
-      <li>Hermes's own approvals and guardrails apply to the small model's tool calls too. It cannot get around them.</li>
-      <li>A model that falls back more than 10% of the time, or that you mark bad twice, steps back to shadow mode on its own.</li>
-      <li>Only answers from your own model, in turns that went well, are ever trained on.</li>
-    </ul>
-  </section>
+<section>
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">The first minute</span>
+      <h2 class="h2">See what you repeat <span class="soft">before you spend a cent.</span></h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Enable the plugin and Tironian reads your existing Hermes history, read only. It groups your requests into recurring tasks and shows what they cost you, right inside Hermes Desktop.</p>
+    </div>
+    <div class="mock-stage reveal">
+      <div class="mock" role="img" aria-label="Example of the Tironian page in Hermes Desktop">
+        <div class="mock-bar"><i></i><i></i><i></i></div>
+        <div class="mock-title"><b>Tironian</b><span>example data</span></div>
+        <div class="tiles">
+          <div class="tile"><small>Requests learned</small><strong>1,240</strong></div>
+          <div class="tile"><small>Answered locally</small><strong>38%</strong></div>
+          <div class="tile"><small>Saved</small><strong>$4.12</strong></div>
+          <div class="tile"><small>Silent fallbacks</small><strong>3</strong></div>
+        </div>
+        <div class="rows">
+          <div class="row"><span>Task family</span><span>Good</span><span>Status</span><span>Held-out test</span></div>
+          <div class="row"><b>largest files in a folder</b><span>212</span><span class="pill live">answering</span><span><div class="bar"><i style="width:93%"></i><span class="gate" style="left:85%"></span></div></span></div>
+          <div class="row"><b>count files by type</b><span>148</span><span class="pill shadow">shadow</span><span><div class="bar"><i style="width:89%"></i><span class="gate" style="left:85%"></span></div></span></div>
+          <div class="row"><b>newest files</b><span>96</span><span class="pill fail">failed its test</span><span><div class="bar"><i style="width:71%"></i><span class="gate" style="left:85%"></span></div></span></div>
+          <div class="row"><b>commit message for staged diff</b><span>19</span><span class="pill learn">learning</span><span style="color:var(--faint)">needs 6 more</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <section id="privacy" class="wrap">
-    <h2>What stays on your machine</h2>
-    <p>Everything, until you press Train. Tironian reads your Hermes history read only, keeps its own
-      database inside Hermes's plugin data folder, and drops recorded contexts after 90 days. Deleting a
-      session in Hermes deletes it from Tironian too, and <code>/tironian off</code> stops recording a
-      conversation. When you do start a training run, that family's masked examples go to a private
-      volume in your own Modal account, the model comes back, and the files are deleted from the volume.
-      No telemetry.</p>
-  </section>
+<hr class="divider">
 
-  <section class="wrap start">
-    <h2>Try it</h2>
+<section id="features">
+  <div class="wrap">
+    <div class="feature reveal">
+      <div class="feature-copy">
+        <span class="kicker"><span class="num">01</span>Capture</span>
+        <h3>Every step recorded, <span class="accent">nothing secret kept.</span></h3>
+        <p>Tironian sits on Hermes's public plugin surfaces and records each model step and tool run. API keys, tokens, passwords, emails, phone numbers, card numbers and your login name are masked before anything is written.</p>
+        <ul class="ticks">
+          <li><b>Works with any provider</b> Hermes speaks to: OpenAI style, Anthropic and Responses.</li>
+          <li><b>Read only</b> on your history. Delete a session in Hermes and it is gone here too.</li>
+        </ul>
+      </div>
+      <div class="term">
+        <div class="term-head"><i></i><i></i><i></i><span>what gets stored</span></div>
+<pre><span class="t-m"># before</span>
+export OPENAI_API_KEY=sk-proj-9f2c...
+psql postgres://bob:hunter2@db/app
+mail jane.doe@example.com
+
+<span class="t-m"># after</span>
+export OPENAI_API_KEY=<span class="t-c">[REDACTED:openai_key]</span>
+psql postgres://<span class="t-c">[REDACTED:url_credentials]</span>@db/app
+mail <span class="t-c">[REDACTED:email]</span></pre>
+      </div>
+    </div>
+
+    <div class="feature flip reveal">
+      <div class="feature-copy">
+        <span class="kicker"><span class="num">02</span>Grade</span>
+        <h3>Judged on what happened, <span class="accent">not on what it said.</span></h3>
+        <p>Did the commands succeed? Did you correct it, ask again, deny an approval, or mark it with <code>/tironian bad</code>? Only turns that went well are ever learned from, and only your own model's answers.</p>
+        <a class="btn btn-ghost btn-sm" href="/how-it-works#grading">How grading works</a>
+      </div>
+      <div class="term">
+        <div class="term-head"><i></i><i></i><i></i><span>tironian grading</span></div>
+<pre>turn 0412  <span class="t-ok">good</span>   +0.40  session_completed, tools_ok
+turn 0413  <span class="t-w">bad</span>    -0.60  user_corrected, tool_failed:terminal
+turn 0414  <span class="t-ok">good</span>   +0.70  tools_ok, user_thanked
+turn 0415  <span class="t-m">unknown</span> +0.10  moved_on
+turn 0416  <span class="t-w">bad</span>    -1.00  explicit:bad</pre>
+      </div>
+    </div>
+
+    <div class="feature reveal">
+      <div class="feature-copy">
+        <span class="kicker"><span class="num">03</span>Train</span>
+        <h3>A model per task, <span class="accent">for about thirty cents.</span></h3>
+        <p>When a recurring task has enough good examples, Tironian fine-tunes Qwen3 1.7B with LoRA and exports a quantized GGUF file. It runs on a GPU in your own Modal account, or free on your own NVIDIA card.</p>
+        <ul class="ticks">
+          <li><b>Cost shown first,</b> and a hard cap enforced as a timeout.</li>
+          <li><b>Survives restarts.</b> The job runs in its own process and reports through a file.</li>
+        </ul>
+      </div>
+      <div class="term">
+        <div class="term-head"><i></i><i></i><i></i><span>hermes tironian train fdisk --follow</span></div>
+<pre>fdisk: 164 examples to learn from, 41 held out
+Estimate: ~12 min, ~$0.16 on Modal L4; hard cap $0.60.
+[uploading  ]   2.0%  uploading dataset to your Modal volume
+[training   ]  48.0%  step 26/42 · loss 0.512
+[exporting  ]  82.0%  merging and quantizing to Q4_K_M GGUF
+[done       ] <span class="t-ok">100.0%  student ready</span>
+<span class="t-m">example output</span></pre>
+      </div>
+    </div>
+
+    <div class="feature flip reveal">
+      <div class="feature-copy">
+        <span class="kicker"><span class="num">04</span>Prove</span>
+        <h3>It has to pass a test <span class="accent">it has never seen.</span></h3>
+        <p>The new model answers steps from sessions held back from training. It is promoted only when the lower end of the 95% confidence interval on its pass rate clears 85%. A model that got lucky on a few examples does not get through.</p>
+        <a class="btn btn-ghost btn-sm" href="/how-it-works#gate">The math behind the gate</a>
+      </div>
+      <div class="term">
+        <div class="term-head"><i></i><i></i><i></i><span>hermes tironian eval</span></div>
+<pre>38/41 held-out steps passed · 95% CI 81% to 97%
+format valid 100% · p50 2140 ms
+<span class="t-w">GATE NOT PASSED: lower bound 81% &lt; 85%</span>
+
+41/41 held-out steps passed · 95% CI 91% to 100%
+<span class="t-ok">GATE PASSED: lower bound 91% ≥ 85%</span>
+<span class="t-m">example output</span></pre>
+      </div>
+    </div>
+
+    <div class="feature reveal">
+      <div class="feature-copy">
+        <span class="kicker"><span class="num">05</span>Route</span>
+        <h3>Answers locally, <span class="accent">falls back silently.</span></h3>
+        <p>Matching requests go to your model through Hermes's local runtime. Every answer must parse, call a tool the request actually offers, and pass that tool's schema. Anything else, and your usual model answers. After a failed or blocked step, it finishes the turn.</p>
+        <ul class="ticks">
+          <li><b>Hermes approvals still apply</b> to the small model's tool calls.</li>
+          <li><b>Auto demotion</b> if more than 10% of its recent answers fall back.</li>
+        </ul>
+      </div>
+      <div class="term">
+        <div class="term-head"><i></i><i></i><i></i><span>/tironian why</span></div>
+<pre>fdisk: <span class="t-ok">answered by your student</span> (1840 ms)
+fdisk: <span class="t-w">student's answer failed validation</span>
+       <span class="t-m">→ your model answered</span>
+fcount: <span class="t-c">shadow: student agreed with your model</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="grid-bg" id="loop">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Why it gets better every week</span>
+      <h2 class="h2">A loop, <span class="soft">not a one-off.</span></h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Each week of normal use adds graded examples. Families that were too small become trainable, and models that failed their test get another chance with more data.</p>
+    </div>
+    <div class="loop-tabs" role="tablist" aria-label="The Tironian loop" data-auto="on">
+      <button role="tab" id="t-cap" aria-controls="p-cap" aria-selected="true"><span>1</span>CAPTURE</button>
+      <button role="tab" id="t-grade" aria-controls="p-grade" aria-selected="false" tabindex="-1"><span>2</span>GRADE</button>
+      <button role="tab" id="t-group" aria-controls="p-group" aria-selected="false" tabindex="-1"><span>3</span>GROUP</button>
+      <button role="tab" id="t-train" aria-controls="p-train" aria-selected="false" tabindex="-1"><span>4</span>TRAIN</button>
+      <button role="tab" id="t-test" aria-controls="p-test" aria-selected="false" tabindex="-1"><span>5</span>TEST</button>
+      <button role="tab" id="t-route" aria-controls="p-route" aria-selected="false" tabindex="-1"><span>6</span>ROUTE</button>
+    </div>
+    <div class="frame">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="loop-panel" id="p-cap" role="tabpanel" aria-labelledby="t-cap">
+        <div><span class="kicker">Capture</span><h3>Why did it answer like that?</h3><p>Every request, model step and tool result, masked and stored on your machine. The raw material for everything that follows.</p><a class="more link" href="/how-it-works#capture">Capture in detail</a></div>
+        <div class="term"><pre>decisions captured     7
+tool runs              6   <span class="t-ok">5 ok</span> <span class="t-w">1 timeout</span>
+tool schemas          20
+values masked          3</pre></div>
+      </div>
+      <div class="loop-panel" id="p-grade" role="tabpanel" aria-labelledby="t-grade" hidden>
+        <div><span class="kicker">Grade</span><h3>Mark what worked. Flag what broke.</h3><p>Deterministic signals from the turn itself, plus your own <code>/tironian good</code> and <code>bad</code>. An optional judge only settles the unclear ones.</p><a class="more link" href="/how-it-works#grading">Grading in detail</a></div>
+        <div class="term"><pre>good     <span class="t-ok">█████████████████</span>  37
+unknown  <span class="t-m">███</span>                 6
+bad      <span class="t-w">██</span>                  4</pre></div>
+      </div>
+      <div class="loop-panel" id="p-group" role="tabpanel" aria-labelledby="t-group" hidden>
+        <div><span class="kicker">Group</span><h3>Find the tasks you repeat.</h3><p>Folder names, file types and filler words are set aside, common synonyms are merged, and what is left is the shape of the task.</p><a class="more link" href="/how-it-works#families">Families in detail</a></div>
+        <div class="term"><pre>"largest files in my Downloads folder"
+"biggest files in Videos"
+  → show the &lt;n&gt; <span class="t-c">largest</span> files in my &lt;name&gt; folder</pre></div>
+      </div>
+      <div class="loop-panel" id="p-train" role="tabpanel" aria-labelledby="t-train" hidden>
+        <div><span class="kicker">Train</span><h3>A small model per task.</h3><p>Qwen3 1.7B, LoRA, two epochs, loss on the answer only. The prompt it learns from is byte for byte what it will be served.</p><a class="more link" href="/how-it-works#training">Training in detail</a></div>
+        <div class="term"><pre>base     unsloth/Qwen3-1.7B
+method   LoRA r16, all linear layers
+output   Q4_K_M GGUF, about 1.1 GB
+cost     about $0.30 on a Modal L4</pre></div>
+      </div>
+      <div class="loop-panel" id="p-test" role="tabpanel" aria-labelledby="t-test" hidden>
+        <div><span class="kicker">Test</span><h3>Ship only what passes.</h3><p>Same tool, matching arguments, valid format. The pass rate's lower confidence bound has to clear your threshold before anything changes.</p><a class="more link" href="/how-it-works#gate">The gate in detail</a></div>
+        <div class="term"><pre>n = 41 held out
+passed 39   lower bound <span class="t-ok">0.84</span>  <span class="t-w">needs 0.85</span>
+→ stays out of your way until it does</pre></div>
+      </div>
+      <div class="loop-panel" id="p-route" role="tabpanel" aria-labelledby="t-route" hidden>
+        <div><span class="kicker">Route</span><h3>Local first, never worse.</h3><p>Shadow mode first, compared against your model on real requests. Then it answers, with every reply checked and a silent fallback.</p><a class="more link" href="/how-it-works#routing">Routing in detail</a></div>
+        <div class="term"><pre>shadow   agreed 44 of 48    <span class="t-ok">92%</span>
+live     answered 211       fallbacks 6
+saved    <span class="t-c">$4.12</span> this month</pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="quote">
+  <div class="wrap">
+    <blockquote class="reveal">“Your services to me are <b>beyond counting</b>, at home and abroad, <b>in my studies and my writing.</b>”</blockquote>
+    <cite>Marcus Tullius Cicero<span>in a letter to Tiro, the secretary this project is named after</span></cite>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Own your model</span>
+      <h2 class="h2">Built by an engineer, <span class="soft">for people who want control.</span></h2>
+    </div>
+    <div class="cards c4 reveal">
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div><h3>Private by default</h3><p>Nothing leaves your computer until you start a training run, and then only to your own Modal account.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Never worse than today</h3><p>Your model is called at most once per request, and any problem in Tironian falls through to it.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div><h3>Standard formats</h3><p>Training data in Nous's Hermes function calling format. Models as plain GGUF files you can run anywhere.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></div><h3>Yours to keep</h3><p>MIT licensed. Export any dataset with one command and take your models with you.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="grid-bg">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Train anywhere</span>
+      <h2 class="h2">Pick where the GPU comes from.</h2>
+    </div>
+    <div class="cards c3 reveal">
+      <a class="card" href="/docs#modal"><span class="tag">default</span><div class="ico"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1.5A4 4 0 1117 18z"/></svg></div><h3>Modal</h3><p>A GPU in your own Modal account. About $0.30 a run, capped, and the files are deleted from Modal after download.</p><span class="more">Set up Modal →</span></a>
+      <a class="card" href="/docs#local-gpu"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4v4H7zM15 10h2M15 14h2"/></svg></div><h3>Your own GPU</h3><p>An NVIDIA card on your machine runs the same training script for free.</p><span class="more">Train locally →</span></a>
+      <a class="card" href="/docs#dry-run"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div><h3>Dry run</h3><p>The whole pipeline end to end with no compute at all, for trying Tironian out and for its own tests.</p><span class="more">Try a dry run →</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Why Tironian</span>
+      <h2 class="h2">More than a prompt. <span class="soft">A system that learns.</span></h2>
+    </div>
+    <div class="cards c4 reveal">
+      <div class="card"><h3>Learns from you</h3><p>Not from a benchmark. From the requests you actually make, graded by what actually happened.</p></div>
+      <div class="card"><h3>Honest about itself</h3><p>A model that fails its test says so, with the reason, and stays out of the way.</p></div>
+      <div class="card"><h3>Nothing to babysit</h3><p>Grading, grouping and fallback are automatic. You decide when to train and when to promote.</p></div>
+      <div class="card"><h3>Cheaper over time</h3><p>Every routine request a small model handles is one your paid model doesn't.</p></div>
+      <div class="card"><h3>Faster on routine work</h3><p>A 1.7B model on your own machine, with a short prompt built for one task.</p></div>
+      <div class="card"><h3>Works offline</h3><p>Once a model is trained, its task keeps working without the internet.</p></div>
+      <div class="card"><h3>Plain plugin</h3><p>Public Hermes plugin surfaces only. No patches, no extra packages inside Hermes.</p></div>
+      <div class="card"><h3>Tested</h3><p>54 tests covering redaction, grading, the gate and every fallback path, plus live checks on a real install.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="grid-bg" id="install">
+  <div class="wrap narrow">
+    <div class="section-head center reveal">
+      <span class="kicker">Install</span>
+      <h2 class="h2">Running in <span class="hl">under five minutes.</span></h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Free to install. Your first report costs nothing.</p>
+    </div>
+    <div class="tabs reveal">
+      <div class="tab-list" role="tablist" aria-label="Ways to install">
+        <button role="tab" id="i-term" aria-controls="ip-term" aria-selected="true">Terminal</button>
+        <button role="tab" id="i-desk" aria-controls="ip-desk" aria-selected="false" tabindex="-1">Hermes Desktop</button>
+        <button role="tab" id="i-chat" aria-controls="ip-chat" aria-selected="false" tabindex="-1">Inside a chat</button>
+      </div>
+      <div class="tab-panel" id="ip-term" role="tabpanel" aria-labelledby="i-term">
 <pre><code>hermes plugins install angelraph/tironian
 hermes plugins enable tironian
+hermes tironian report</code></pre>
+        <p>The report reads your Hermes history read only and shows which tasks you repeat. <button class="copy-btn" type="button">Copy</button></p>
+      </div>
+      <div class="tab-panel" id="ip-desk" role="tabpanel" aria-labelledby="i-desk" hidden>
+        <p style="margin-top:0"><a class="btn btn-accent" href="hermes://plugin/install?repo=angelraph/tironian&amp;enable=1">Install in Hermes Desktop</a></p>
+        <p>Hermes shows what the plugin contains and asks before installing anything. Then open Tironian from the sidebar: your recurring tasks, each model's test result, and buttons to train, try a model in shadow, or let it answer.</p>
+      </div>
+      <div class="tab-panel" id="ip-chat" role="tabpanel" aria-labelledby="i-chat" hidden>
+<pre><code>/tironian report     what you repeat, and what it costs
+/tironian families   each task family and what it needs
+/tironian good       teach it from a good answer
+/tironian            status</code></pre>
+        <p>The slash command works everywhere Hermes does: the terminal, Desktop, Telegram, Discord and the rest.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-# in any Hermes session
-/tironian report</code></pre>
-    <p>The report reads your existing history, so it has something to show straight away. It needs no keys and costs nothing.</p>
-  </section>
+<section>
+  <div class="wrap faq">
+    <div class="faq-side reveal">
+      <span class="kicker">Questions</span>
+      <h2 class="h2">Questions <span class="soft">&amp; answers</span></h2>
+      <p class="sub" style="font-size:16px">More in the <a class="link" href="/faq">full FAQ</a>.</p>
+    </div>
+    <div class="faq-list reveal">
+      <details><summary>What is Tironian, in one sentence?</summary><div class="answer"><p>A Hermes Agent plugin that trains a small local model on the requests you keep repeating, tests it on your own past sessions, and lets it answer those requests, with your usual model as a silent backup.</p></div></details>
+      <details><summary>Can it make my answers worse?</summary><div class="answer"><p>It is built so that it can't. A small model only answers a task after passing a held-out test, every answer it gives is validated, and anything off goes to your usual model. After any failed step your model finishes the turn, and a model that falls back too often is demoted automatically.</p></div></details>
+      <details><summary>What does it cost?</summary><div class="answer"><p>The plugin is free. Training a model on Modal costs about $0.30 a run with a hard cap you set, and Modal's free monthly credit usually covers it. On your own NVIDIA GPU it's free. See <a href="/pricing">Cost</a>.</p></div></details>
+      <details><summary>Does my data leave my computer?</summary><div class="answer"><p>Not until you start a training run. Then one family's masked examples go to a private volume in your own Modal account and are deleted after training. See <a href="/privacy">Privacy</a>.</p></div></details>
+      <details><summary>Do I need a GPU?</summary><div class="answer"><p>No. Training can run on Modal, and the trained 1.7B model runs on an ordinary CPU through Hermes's local model runtime. A GPU just makes both faster.</p></div></details>
+    </div>
+  </div>
+</section>
+
+<section class="final grid-bg glow">
+  <div class="wrap">
+    <img class="mark-big" src="/assets/mark-512.png" alt="" width="96" height="96">
+    <h2 class="h2">Stop paying a large model<br><span class="accent">for the same small job.</span></h2>
+    <p class="sub" style="margin:18px auto 0">Install Tironian, read your report, and train your first model when a task is ready.</p>
+    <div class="cta-row">
+      <button class="btn btn-primary" type="button" data-copy="hermes plugins install angelraph/tironian">Copy install command <kbd>I</kbd></button>
+      <a class="btn btn-ghost" href="https://github.com/angelraph/tironian">View on GitHub <kbd>G</kbd></a>
+    </div>
+  </div>
+</section>
+
 </main>
-
-<footer class="wrap foot">
-  <p>Named after Tiro, Cicero's secretary, who learned his master's work well enough to invent a shorthand for it.</p>
-  <p><a href="https://github.com/angelraph/tironian">Source on GitHub</a> · MIT license</p>
+<footer class="site-foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <img src="/assets/wordmark.png" alt="Tironian. Train, route, ship." width="160">
+        <p>A Hermes Agent plugin that turns the work you already do into a small model of your own.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="/how-it-works">How it works</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy">Privacy and safety</a>
+        <a href="/changelog">Changelog</a>
+      </div>
+      <div class="foot-col">
+        <h4>Docs</h4>
+        <a href="/docs#install">Install</a>
+        <a href="/docs#first-model">Your first model</a>
+        <a href="/docs#cli">CLI reference</a>
+        <a href="/docs#settings">Settings</a>
+        <a href="/docs#troubleshooting">Troubleshooting</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/angelraph/tironian">Source code</a>
+        <a href="https://github.com/angelraph/tironian/issues">Report a problem</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/README.md">README</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/LICENSE">MIT license</a>
+      </div>
+      <div class="foot-col">
+        <h4>Hermes</h4>
+        <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/plugins">Plugin marketplace</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/developer-guide/plugins">Plugin guide</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Named after Tiro, Cicero's secretary, who invented a shorthand to carry his master's work forward.</span>
+      <span>MIT licensed · No telemetry · Keyboard: <kbd>I</kbd> copy install <kbd>D</kbd> docs <kbd>F</kbd> FAQ <kbd>G</kbd> GitHub</span>
+    </div>
+  </div>
 </footer>
-
-<script>
-  for (const b of document.querySelectorAll('[data-copy]')) {
-    b.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy'), 1500) } catch {}
-    })
-  }
-</script>
+<script src="/assets/site.js" defer></script>
 </body>
 </html>

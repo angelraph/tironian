@@ -1,0 +1,68 @@
+<!-- title: FAQ | desc: Answers about what Tironian does, whether it can make answers worse, cost, privacy, training, hardware and how it fits with Hermes. | nav: faq -->
+<section class="page-hero grid-bg glow">
+  <div class="wrap">
+    <span class="eyebrow">FAQ</span>
+    <h1 class="display">Questions, <span class="soft">answered plainly.</span></h1>
+    <p class="lede">If yours isn't here, <a class="link" href="https://github.com/angelraph/tironian/issues">ask on GitHub</a>.</p>
+  </div>
+</section>
+
+<section style="padding-top:10px">
+  <div class="wrap faq">
+    <div class="faq-side">
+      <span class="kicker">Jump to</span>
+      <p class="sub" style="font-size:15px;margin:0 0 6px"><a class="link" href="#basics">The basics</a></p>
+      <p class="sub" style="font-size:15px;margin:0 0 6px"><a class="link" href="#quality">Quality and safety</a></p>
+      <p class="sub" style="font-size:15px;margin:0 0 6px"><a class="link" href="#cost">Cost and hardware</a></p>
+      <p class="sub" style="font-size:15px;margin:0 0 6px"><a class="link" href="#data">Your data</a></p>
+      <p class="sub" style="font-size:15px;margin:0 0 6px"><a class="link" href="#technical">Technical</a></p>
+    </div>
+    <div class="faq-list">
+      <div class="faq-cat" id="basics">The basics</div>
+      <details id="what"><summary>What is Tironian?</summary><div class="answer"><p>A plugin for Hermes Agent. It learns which tasks you keep asking Hermes to do, trains a small model for each of them, checks that model against your own past sessions, and then lets it handle those requests on your computer. Your usual model stays in charge of everything else and steps in whenever the small model isn't sure.</p></div></details>
+      <details id="who"><summary>Who is it for?</summary><div class="answer"><p>Anyone who uses Hermes for the same kinds of jobs again and again: checking disk space, summarising a type of document, writing commit messages, tidying files. The more routine your work, the more it helps. If every request you make is different, Tironian will tell you so in its report and stay out of the way.</p></div></details>
+      <details id="name"><summary>Why the name?</summary><div class="answer"><p>Tiro was Cicero's secretary. He learned his master's work so well that he invented a shorthand, the Tironian notes, to keep up with it and carry it forward. A small model learning a larger one's routine work felt like the same idea.</p></div></details>
+      <details id="first"><summary>What happens right after I install it?</summary><div class="answer"><p>Nothing that costs anything. Tironian reads your Hermes history read only and builds a report: how much of your work repeats, grouped into task families, and what those tasks cost you over the last 30 days. Training only happens when you ask for it.</p></div></details>
+      <details id="how-long"><summary>How long until I have a model?</summary><div class="answer"><p>A task needs 25 good examples to become trainable (you can change that). For a task you do a few times a day, that's about a week of normal use. Training itself takes 10 to 20 minutes.</p></div></details>
+
+      <div class="faq-cat" id="quality">Quality and safety</div>
+      <details id="worse"><summary>Can Tironian make my answers worse?</summary><div class="answer"><p>It is built so that it can't. A small model only answers a task after passing a held-out test on sessions it never saw. Every answer is checked before Hermes sees it, and anything off goes to your usual model instead. After any failed or blocked step, your model finishes the turn. A model that falls back more than 10% of the time, or that you mark bad twice, demotes itself.</p></div></details>
+      <details id="gate"><summary>What exactly does the test check?</summary><div class="answer"><p>For each held-out step: valid format, the same kind of action as your model took, the same tools, arguments that pass their schemas and match yours. The model is promoted only if the lower end of the 95% confidence interval on its pass rate reaches 85%, with at least 30 steps tested. That lower bound is what makes ten lucky answers not enough. <a href="/how-it-works#gate">The details</a>.</p></div></details>
+      <details id="shadow"><summary>What is shadow mode?</summary><div class="answer"><p>After passing its test, a model first answers real requests in the background while your usual model still replies to you. Tironian compares the two. Only when they agree often enough can you let the small model answer for real.</p></div></details>
+      <details id="approvals"><summary>Can a small model run dangerous commands?</summary><div class="answer"><p>No more than your usual model can. Its tool calls go through the same Hermes guardrails and approvals. In testing on a real install, Hermes blocked a small model's command exactly as it would have blocked the usual model's, and the usual model then finished the task.</p></div></details>
+      <details id="mistake"><summary>What if it does get something wrong?</summary><div class="answer"><p>Type <code>/tironian bad</code>. That answer is never learned from, and two bad marks on a model's answers send it back to shadow mode. <code>/tironian demote &lt;family&gt;</code> stops it immediately.</p></div></details>
+      <details id="learn-from-student"><summary>Does the small model learn from its own answers?</summary><div class="answer"><p>Never. Only answers your usual model produced, in turns that went well, are used for training. That prevents a model from slowly drifting on its own mistakes.</p></div></details>
+
+      <div class="faq-cat" id="cost">Cost and hardware</div>
+      <details id="price"><summary>What does it cost?</summary><div class="answer"><p>The plugin is free and MIT licensed. Training on Modal costs about $0.30 a run with a hard cap you set, usually covered by Modal's free credit. Training on your own NVIDIA GPU is free. Running a trained model costs nothing. See <a href="/pricing">Cost</a>.</p></div></details>
+      <details id="gpu"><summary>Do I need a GPU?</summary><div class="answer"><p>No. Training can run on Modal, and the trained 1.7B model runs on an ordinary CPU. On a laptop without a graphics card it is slower per answer than a fast hosted model; the gains there are privacy, working offline and cost. A GPU makes it fast as well.</p></div></details>
+      <details id="savings"><summary>How much will I save?</summary><div class="answer"><p>It depends on how much of your work repeats and what your usual model costs. Tironian credits each request a small model answers with the average cost of that task on your model, and shows the total. If your model is free, it shows $0 and the benefit is speed, privacy and offline use.</p></div></details>
+      <details id="modal-card"><summary>Does Modal need my card?</summary><div class="answer"><p>No. Without a card Modal gives a small free credit, enough for a couple of training runs. A card raises the monthly free credit and you can set a spending limit.</p></div></details>
+
+      <div class="faq-cat" id="data">Your data</div>
+      <details id="leave"><summary>Does my data leave my computer?</summary><div class="answer"><p>Not until you start a training run. Then one task's masked examples are uploaded to a private Volume in your own Modal account and deleted after training. Training on your own GPU keeps everything local. <a href="/privacy">Everything it reads, keeps and sends</a>.</p></div></details>
+      <details id="secrets"><summary>What about passwords and API keys in my sessions?</summary><div class="answer"><p>They are masked before anything is stored: provider keys, tokens, private keys, passwords, credentials in URLs and other long random strings, plus emails, phone numbers, card numbers, IBANs, your home folder and login name. Steps with many masked values are never trained on.</p></div></details>
+      <details id="delete"><summary>How do I delete what it has collected?</summary><div class="answer"><p>Delete a session in Hermes and Tironian deletes it too. <code>/tironian off</code> excludes the current conversation. <code>hermes tironian purge --yes</code> deletes everything.</p></div></details>
+      <details id="telemetry"><summary>Does Tironian phone home?</summary><div class="answer"><p>No. There is no telemetry, no analytics and no account.</p></div></details>
+
+      <div class="faq-cat" id="technical">Technical</div>
+      <details id="model"><summary>Which model does it train?</summary><div class="answer"><p>Qwen3 1.7B by default, or 4B. LoRA fine-tuning with Unsloth, merged and quantized to a Q4_K_M GGUF file of about 1.1 GB for the 1.7B model.</p></div></details>
+      <details id="format"><summary>Can I use the data or models outside Tironian?</summary><div class="answer"><p>Yes. <code>hermes tironian export</code> writes datasets in Nous's Hermes function calling format (ShareGPT style JSONL), and models are plain GGUF files that run in llama.cpp, Ollama, LM Studio and others.</p></div></details>
+      <details id="providers"><summary>Does it work with my model provider?</summary><div class="answer"><p>Capture works with all three formats Hermes speaks: OpenAI style chat completions (OpenRouter, Nous Portal and most others), Anthropic messages and the Responses API. Live routing supports chat completions and Anthropic messages.</p></div></details>
+      <details id="hermes"><summary>Does it change Hermes itself?</summary><div class="answer"><p>No. It uses only public plugin surfaces: hooks, one middleware, a slash command, a CLI command, an auxiliary model slot, plugin storage and the secret store. <code>hermes plugins validate</code> passes, including the check that it doesn't override anything in Hermes.</p></div></details>
+      <details id="slow"><summary>Does it slow Hermes down?</summary><div class="answer"><p>Capture adds a few milliseconds per model call. Matching a request to a task family takes well under five milliseconds. If the small model can't be reached, Tironian waits at most <code>student_timeout_s</code> (25 seconds by default) before your usual model answers.</p></div></details>
+      <details id="contribute"><summary>Can I contribute?</summary><div class="answer"><p>Please do. The code, tests and issues are on <a href="https://github.com/angelraph/tironian">GitHub</a>. Run <code>python -m pytest tests -q</code> before sending a change.</p></div></details>
+    </div>
+  </div>
+</section>
+
+<section class="final grid-bg glow" style="padding:90px 0">
+  <div class="wrap">
+    <h2 class="h2">Still curious? <span class="accent">Try it.</span></h2>
+    <p class="sub" style="margin:16px auto 0">The report costs nothing and shows you in a minute whether Tironian will help.</p>
+    <div class="cta-row">
+      <button class="btn btn-primary" type="button" data-copy="hermes plugins install angelraph/tironian">Copy install command <kbd>I</kbd></button>
+      <a class="btn btn-ghost" href="/docs">Read the docs <kbd>D</kbd></a>
+    </div>
+  </div>
+</section>

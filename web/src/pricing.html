@@ -1,0 +1,77 @@
+<!-- title: Cost | desc: Tironian is free. Training a model costs about thirty cents on Modal with a hard cap, or nothing on your own GPU. Estimate your own cost. | nav: pricing -->
+<section class="page-hero grid-bg glow">
+  <div class="wrap">
+    <span class="eyebrow">Cost</span>
+    <h1 class="display">The plugin is free. <span class="soft">Training costs cents.</span></h1>
+    <p class="lede">Tironian itself costs nothing and never will. The only cost is GPU time when you train a model, and you choose where that comes from.</p>
+  </div>
+</section>
+
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="cards c3 price-cards reveal">
+      <div class="card">
+        <span class="kicker">Plugin</span>
+        <div class="price">$0</div>
+        <p>Capture, grading, task families, the report, the Desktop page, routing and fallback.</p>
+        <ul class="ticks"><li>MIT licensed</li><li>No account, no telemetry</li><li>Nothing leaves your machine</li></ul>
+      </div>
+      <div class="card featured">
+        <span class="tag">default</span>
+        <span class="kicker">Train on Modal</span>
+        <div class="price">$0.10<small> to </small>$0.40<small> a run</small></div>
+        <p>A GPU in your own Modal account, billed by the second. Modal's monthly free credit usually covers it.</p>
+        <ul class="ticks"><li>Cost shown before every run</li><li>Hard cap, enforced as a timeout</li><li>Files deleted from Modal afterwards</li></ul>
+      </div>
+      <div class="card">
+        <span class="kicker">Train on your GPU</span>
+        <div class="price">$0</div>
+        <p>Any NVIDIA card with 8 GB or more. Same training script, nothing leaves your machine.</p>
+        <ul class="ticks"><li>One-time download of the training libraries</li><li>Your electricity, nobody's cloud</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="grid-bg" style="padding-top:40px">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Estimate</span>
+      <h2 class="h2">What would it cost <span class="soft">you?</span></h2>
+    </div>
+    <div class="frame calc reveal" id="calc">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="calc-in">
+        <label>GPU</label>
+        <div class="seg"><button type="button" data-gpu="L4" aria-pressed="true">L4</button><button type="button" data-gpu="A10G" aria-pressed="false">A10G</button></div>
+        <label>Base model</label>
+        <div class="seg"><button type="button" data-model="1.7b" aria-pressed="true">Qwen3 1.7B</button><button type="button" data-model="4b" aria-pressed="false">Qwen3 4B</button></div>
+        <label for="calc-ex">Training examples: <b id="calc-ex-v">150</b></label>
+        <input id="calc-ex" type="range" min="25" max="1500" step="25" value="150">
+        <label for="calc-runs">Training runs a month: <b id="calc-runs-v">4</b></label>
+        <input id="calc-runs" type="range" min="1" max="30" step="1" value="4">
+      </div>
+      <div class="calc-out">
+        <div><p>One run</p><div class="big-num" id="calc-one">$0.00</div></div>
+        <div><p>Per month</p><div class="big-num" id="calc-total">$0.00</div></div>
+        <p>About <b id="calc-min">0 min</b> of GPU time per run. <span id="calc-credit"></span></p>
+        <p style="font-size:12.5px">Estimate from Modal's per-second GPU prices and Tironian's own timing model, including container start and GGUF export. Your Modal dashboard shows the real number.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <div class="section-head reveal">
+      <span class="kicker">What you save</span>
+      <h2 class="h2">The other side <span class="soft">of the ledger.</span></h2>
+      <p class="sub">Every request a small model answers is one your paid model doesn't. Tironian counts it: each served request is credited with the average cost of that task on your own model, and the total shows on the Desktop page and in <code>/tironian</code>. If your model is free, the saving is time and privacy rather than money, and Tironian shows that honestly as $0.</p>
+    </div>
+    <div class="faq-list reveal">
+      <details><summary>Do I need a card for Modal?</summary><div class="answer"><p>No. Modal's Starter plan gives a small free credit without a card, enough for a couple of runs. Adding a card raises the monthly free credit; you are only charged above it, and you can set a spending limit in Modal.</p></div></details>
+      <details><summary>Can a run cost more than the estimate?</summary><div class="answer"><p>Not more than your cap. <code>max_usd_per_run</code> becomes the GPU job's timeout, so the job is stopped before it can cost more. The default cap is $1.00.</p></div></details>
+      <details><summary>What does running the model cost?</summary><div class="answer"><p>Nothing extra. The trained model runs on your own computer through Hermes's local model runtime.</p></div></details>
+    </div>
+  </div>
+</section>

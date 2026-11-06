@@ -1,0 +1,171 @@
+<!-- title: Docs | desc: Install Tironian, read your first report, train and test your first model, and every command and setting explained. | nav: docs -->
+<div class="wrap doc-layout">
+  <aside class="doc-side" aria-label="Docs">
+    <h5>Get started</h5>
+    <a href="#install">Install</a>
+    <a href="#report">Your first report</a>
+    <a href="#first-model">Your first model</a>
+    <h5>Training</h5>
+    <a href="#modal">On Modal</a>
+    <a href="#local-gpu">On your own GPU</a>
+    <a href="#dry-run">Dry run</a>
+    <a href="#load">Loading a model</a>
+    <h5>Reference</h5>
+    <a href="#slash">Slash command</a>
+    <a href="#cli">CLI</a>
+    <a href="#settings">Settings</a>
+    <a href="#files">Where files live</a>
+    <h5>Help</h5>
+    <a href="#troubleshooting">Troubleshooting</a>
+    <a href="#uninstall">Uninstall</a>
+  </aside>
+
+  <article class="prose">
+    <div class="toc-mobile"><select aria-label="Jump to section">
+      <option value="install">Install</option><option value="report">Your first report</option><option value="first-model">Your first model</option>
+      <option value="modal">On Modal</option><option value="local-gpu">On your own GPU</option><option value="dry-run">Dry run</option>
+      <option value="load">Loading a model</option><option value="slash">Slash command</option><option value="cli">CLI</option>
+      <option value="settings">Settings</option><option value="files">Where files live</option><option value="troubleshooting">Troubleshooting</option>
+      <option value="uninstall">Uninstall</option>
+    </select></div>
+
+    <span class="eyebrow">Documentation</span>
+    <h1>Tironian docs</h1>
+    <p class="lead">Everything you need to go from install to a small model answering your routine requests. If something here is unclear or wrong, <a href="https://github.com/angelraph/tironian/issues">open an issue</a>.</p>
+
+    <h2 id="install">Install</h2>
+    <p>You need <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a> 0.22.3 or newer, signed in to any model provider.</p>
+    <pre>hermes plugins install angelraph/tironian
+hermes plugins enable tironian</pre>
+    <p>In Hermes Desktop you can also use the install link: <a href="hermes://plugin/install?repo=angelraph/tironian&amp;enable=1">Install in Hermes Desktop</a>. Desktop shows what the plugin contains and asks before installing. To see the Tironian page, switch on its Desktop part in <b>Capabilities, Plugins</b>.</p>
+    <div class="callout">Plugins are off until you enable them, and the Desktop part is off until you switch it on. That is Hermes's rule, not ours, and a good one.</div>
+
+    <h2 id="report">Your first report</h2>
+    <pre>hermes tironian report</pre>
+    <p>or <code>/tironian report</code> in any session. Tironian reads your Hermes history read only, groups your requests into task families and shows how much of your work repeats and what it cost over the last 30 days. Nothing is sent anywhere and nothing is spent.</p>
+    <pre>Your Tironian report · 47 sessions · 47 requests
+64% of your requests are recurring tasks (30 requests).
+
+Top task families:
+  faa990c09  largest files · folder     10 req ·  6 good · needs 19 more good examples
+  f7fe4b2c3  recent files · folder       8 req ·  8 good · needs 17 more good examples</pre>
+    <p>A family becomes trainable at 25 good examples by default. Keep using Hermes normally: every good turn counts. You can speed things up with <code>/tironian good</code> after an answer you liked.</p>
+
+    <h2 id="first-model">Your first model</h2>
+    <ol>
+      <li>Set up the trainer once: <code>hermes tironian trainer setup</code>. It creates Tironian's own environment and installs the Modal client.</li>
+      <li>Add your Modal token (see <a href="#modal">On Modal</a>) and check it: <code>hermes tironian trainer check</code>. The check uses no compute.</li>
+      <li>Train: <code>hermes tironian train &lt;family&gt; --follow</code>. You see the example counts and the cost before anything starts.</li>
+      <li>Load the model in Hermes (see <a href="#load">Loading a model</a>), then test it: <code>hermes tironian eval &lt;student&gt;</code>.</li>
+      <li>If it passes, try it in shadow mode: <code>hermes tironian shadow &lt;family&gt;</code>. When it agrees with your model often enough, <code>hermes tironian promote &lt;family&gt;</code> and switch on <b>Let promoted students answer</b> in the plugin settings.</li>
+    </ol>
+
+    <h2 id="modal">On Modal</h2>
+    <p>Modal rents GPUs by the second. Tironian uses your own account, so your data and your bill stay yours.</p>
+    <ol>
+      <li>Create an account at <a href="https://modal.com">modal.com</a>. The free Starter plan includes monthly credit (a small amount without a card, more with one).</li>
+      <li>In Modal, open <b>Settings, API Tokens, New Token</b>.</li>
+      <li>Paste the two values into <b>Settings, Plugins, Tironian</b> in Hermes Desktop, or add them to Hermes's <code>.env</code>:</li>
+    </ol>
+    <pre>MODAL_TOKEN_ID=ak-...
+MODAL_TOKEN_SECRET=as-...</pre>
+    <p>A run on an L4 GPU costs about $0.30 for a 1.7B model. <code>max_usd_per_run</code> (default $1.00) is enforced as a timeout on the GPU job, so a run can never cost more. The first run builds the training image, which adds a few minutes. See <a href="/pricing">Cost</a> for an estimate based on your own numbers.</p>
+
+    <h2 id="local-gpu">On your own GPU</h2>
+    <p>With an NVIDIA card, training is free and nothing leaves your machine.</p>
+    <pre>hermes tironian trainer setup --local
+hermes config set plugins.entries.tironian.settings.train_backend local</pre>
+    <p>The local option installs PyTorch and the training libraries into Tironian's own environment (a few GB). A 1.7B model trains comfortably on 8 GB of GPU memory.</p>
+
+    <h2 id="dry-run">Dry run</h2>
+    <pre>hermes tironian train &lt;family&gt; --backend dry-run --follow</pre>
+    <p>Runs the whole job pipeline, from dataset to status updates to a placeholder model file, with no compute at all. Useful for trying Tironian out and for its own tests. A dry-run model is not a real model and can't pass a test.</p>
+
+    <h2 id="load">Loading a model</h2>
+    <p>Trained models are saved as GGUF files under Tironian's data folder; <code>hermes tironian students</code> prints the paths. In Hermes Desktop open <b>Settings, Providers, Local Models, Add model file</b> and pick the file. Hermes's local runtime serves it, and Tironian talks to it at <code>http://127.0.0.1:8080/v1</code> by default.</p>
+    <p>Any OpenAI compatible server works too: Ollama, LM Studio or a llama.cpp server you run yourself. Set <code>student_endpoint</code> to its address.</p>
+
+    <h2 id="slash">Slash command</h2>
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>/tironian</code></td><td>Status: what's learned, answered locally, saved</td></tr>
+        <tr><td><code>/tironian report</code></td><td>Recurring tasks and spend in your history</td></tr>
+        <tr><td><code>/tironian families</code></td><td>Each family, its status and last test</td></tr>
+        <tr><td><code>/tironian good [note]</code></td><td>The last answer was right; learn from it</td></tr>
+        <tr><td><code>/tironian bad [note]</code></td><td>The last answer was wrong; never learn from it</td></tr>
+        <tr><td><code>/tironian off</code> · <code>on</code></td><td>Stop or resume learning from this conversation</td></tr>
+        <tr><td><code>/tironian train &lt;family&gt;</code></td><td>Build the dataset and show the cost; asks before starting</td></tr>
+        <tr><td><code>/tironian shadow|promote|demote &lt;family&gt;</code></td><td>Change what a family's model is allowed to do</td></tr>
+        <tr><td><code>/tironian why</code></td><td>Why the last request did or didn't go to a small model</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="cli">CLI</h2>
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>hermes tironian status</code></td><td>Summary</td></tr>
+        <tr><td><code>hermes tironian import [--days 90]</code></td><td>Read history read only and rebuild families</td></tr>
+        <tr><td><code>hermes tironian report</code></td><td>The report</td></tr>
+        <tr><td><code>hermes tironian families</code></td><td>Families and their status</td></tr>
+        <tr><td><code>hermes tironian dataset &lt;family&gt;</code></td><td>Build a dataset without training</td></tr>
+        <tr><td><code>hermes tironian trainer setup [--local]</code></td><td>Create the trainer environment</td></tr>
+        <tr><td><code>hermes tironian trainer check</code></td><td>Check the Modal token (no cost)</td></tr>
+        <tr><td><code>hermes tironian train &lt;family&gt; [--yes] [--backend] [--follow]</code></td><td>Train a model</td></tr>
+        <tr><td><code>hermes tironian jobs [--follow]</code> · <code>cancel &lt;job&gt;</code></td><td>Watch or stop training</td></tr>
+        <tr><td><code>hermes tironian students</code></td><td>Trained models, paths, whether loaded</td></tr>
+        <tr><td><code>hermes tironian eval &lt;student&gt; [--limit n]</code></td><td>Held-out test and gate verdict</td></tr>
+        <tr><td><code>hermes tironian shadow|promote|demote &lt;family&gt;</code></td><td>Change a family's mode</td></tr>
+        <tr><td><code>hermes tironian export &lt;family&gt; --out &lt;dir&gt;</code></td><td>Write a dataset you can use anywhere</td></tr>
+        <tr><td><code>hermes tironian purge --yes</code></td><td>Delete everything Tironian captured</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="settings">Settings</h2>
+    <p>All settings appear in Hermes Desktop under <b>Settings, Plugins, Tironian</b>, or set them with <code>hermes config set plugins.entries.tironian.settings.&lt;name&gt; &lt;value&gt;</code>.</p>
+    <table>
+      <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>capture_enabled</code></td><td>true</td><td>Learn from sessions</td></tr>
+        <tr><td><code>routing_enabled</code></td><td>false</td><td>Let promoted models answer</td></tr>
+        <tr><td><code>promotion_mode</code></td><td>shadow</td><td>Where a passing model goes first</td></tr>
+        <tr><td><code>exclude_platforms</code></td><td>cron, kanban</td><td>Never learn from these</td></tr>
+        <tr><td><code>redact_pii</code></td><td>true</td><td>Mask personal details as well as secrets</td></tr>
+        <tr><td><code>retention_days</code></td><td>90</td><td>Drop recorded contexts after this</td></tr>
+        <tr><td><code>judge_enabled</code></td><td>false</td><td>Use a judge model for final answers</td></tr>
+        <tr><td><code>base_model</code></td><td>qwen3-1.7b</td><td>Or qwen3-4b</td></tr>
+        <tr><td><code>train_backend</code></td><td>modal</td><td>Or local</td></tr>
+        <tr><td><code>modal_gpu</code></td><td>L4</td><td>Or A10G</td></tr>
+        <tr><td><code>max_usd_per_run</code></td><td>1.0</td><td>Hard cap per training run</td></tr>
+        <tr><td><code>promotion_threshold</code></td><td>0.85</td><td>Lower bound the test must clear</td></tr>
+        <tr><td><code>min_eval_n</code></td><td>30</td><td>Minimum held-out steps</td></tr>
+        <tr><td><code>min_family_turns</code></td><td>25</td><td>Good examples before a family can train</td></tr>
+        <tr><td><code>student_endpoint</code></td><td>127.0.0.1:8080/v1</td><td>Where the small model is served</td></tr>
+        <tr><td><code>student_timeout_s</code></td><td>25</td><td>After this, your model answers</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="files">Where files live</h2>
+    <p>Everything is under <code>&lt;HERMES_HOME&gt;/plugin-data/tironian/</code>: the database (<code>tironian.db</code>), <code>datasets/</code>, <code>jobs/</code>, trained models in <code>students/</code>, and the trainer environment in <code>sidecar/</code>. Updating or removing the plugin keeps this folder, as Hermes intends for plugin data.</p>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+    <h3>The report is empty</h3>
+    <p>Tironian learns from sessions, so a fresh Hermes install has nothing to show yet. Use Hermes for a while, then run <code>hermes tironian import</code>.</p>
+    <h3>A family never becomes trainable</h3>
+    <p>Only good turns count. If your requests for one task are phrased very differently, they may form two smaller families; both will grow. <code>/tironian good</code> after answers you liked helps.</p>
+    <h3>"Modal token missing" or "Token validation failed"</h3>
+    <p>Check that both values are set and that the secret starts with <code>as-</code>. Run <code>hermes tironian trainer check</code> after changing them.</p>
+    <h3>"the local model server doesn't list ..."</h3>
+    <p>The model file isn't loaded in Hermes yet. Add it under Local Models, then run the test again.</p>
+    <h3>The model failed its test</h3>
+    <p>That is the gate doing its job. The message says why (too few held-out steps, format errors or the lower bound). More data usually fixes it; train again later.</p>
+    <h3>Nothing goes to the small model</h3>
+    <p>Run <code>/tironian why</code>. Common reasons: routing is off, the family is still in shadow mode, or the request didn't match the family closely enough.</p>
+
+    <h2 id="uninstall">Uninstall</h2>
+    <pre>hermes tironian purge --yes
+hermes plugins remove tironian</pre>
+    <p>Purge first if you want the captured data gone; removing the plugin alone keeps its data folder. Delete your Modal token in Modal's settings if you no longer need it.</p>
+  </article>
+</div>

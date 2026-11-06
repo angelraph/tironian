@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy and safety · Tironian</title>
+<meta name="description" content="What Tironian reads, what it stores, what it masks, what it sends and when, and the promises it keeps about your answers.">
+<meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://tironian.vercel.app/privacy">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tironian">
+<meta property="og:title" content="Privacy and safety · Tironian">
+<meta property="og:description" content="What Tironian reads, what it stores, what it masks, what it sends and when, and the promises it keeps about your answers.">
+<meta property="og:url" content="https://tironian.vercel.app/privacy">
+<meta property="og:image" content="https://tironian.vercel.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tironian.vercel.app/assets/og.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/mark-32.png">
+<link rel="apple-touch-icon" href="/assets/mark-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Tironian home"><img src="/assets/mark-180.png" alt="" width="30" height="30">Tironian</a>
+    <div class="nav-wrap">
+      <nav class="nav" aria-label="Main">
+        <a href="/how-it-works">How it works</a>
+        <a href="/docs">Docs</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy" aria-current="page">Privacy</a>
+        <a href="/faq">FAQ</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+      <div class="head-actions">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/angelraph/tironian"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub <kbd>G</kbd></a>
+        <a class="btn btn-primary btn-sm" href="/docs#install">Install <kbd>I</kbd></a>
+      </div>
+    </div>
+    <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false"><span></span></button>
+  </div>
+</header>
+<main id="main"><section class="page-hero grid-bg glow">
+  <div class="wrap">
+    <span class="eyebrow">Privacy and safety</span>
+    <h1 class="display">Your work stays <span class="hl">on your machine.</span></h1>
+    <p class="lede">Until you press Train, Tironian sends nothing anywhere. This page lists exactly what it reads, keeps, masks and sends, so you can check it against the code.</p>
+  </div>
+</section>
+
+<section style="padding-top:10px">
+  <div class="wrap">
+    <div class="cards c4 reveal">
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><h3>Reads</h3><p>Your Hermes history, opened read only. Plus what Hermes passes to its plugins during a turn.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/></svg></div><h3>Keeps</h3><p>A local database in Hermes's plugin data folder. Recorded contexts are dropped after 90 days.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><h3>Masks</h3><p>Secrets and personal details, before anything is written to disk.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></div><h3>Sends</h3><p>Nothing, until you start a training run. Then one task's masked examples, to your own Modal account.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap doc-layout" style="padding-top:0">
+  <aside class="doc-side" aria-label="On this page">
+    <h5>Privacy</h5>
+    <a href="#reads">What it reads</a>
+    <a href="#stores">What it stores</a>
+    <a href="#masks">What it masks</a>
+    <a href="#sends">What it sends</a>
+    <a href="#control">Your controls</a>
+    <h5>Safety</h5>
+    <a href="#promises">Promises about answers</a>
+    <a href="#runs">What it runs</a>
+    <a href="#report">Reporting a problem</a>
+  </aside>
+  <article class="prose">
+    <h2 id="reads" style="border-top:0;margin-top:0">What it reads</h2>
+    <ul>
+      <li><b>Your Hermes history.</b> The profile's <code>state.db</code>, opened read only, on first use and when you run <code>hermes tironian import</code>. Tironian never writes to it.</li>
+      <li><b>Each turn as it happens.</b> The request Hermes sends to your model and the response, tool results, approvals and session events, through Hermes's public plugin hooks.</li>
+      <li><b>Its own settings and the Modal token,</b> through Hermes's config and secret store. It never reads <code>.env</code>, <code>auth.json</code> or other tools' credentials directly.</li>
+    </ul>
+
+    <h2 id="stores">What it stores</h2>
+    <p>Everything lives in <code>&lt;HERMES_HOME&gt;/plugin-data/tironian/</code> on your computer:</p>
+    <ul>
+      <li>masked request contexts and responses, tool outcomes and grades (<code>tironian.db</code>),</li>
+      <li>datasets you build, in the Hermes ShareGPT format,</li>
+      <li>training job folders and the models you train, as GGUF files.</li>
+    </ul>
+    <p>Recorded contexts older than <code>retention_days</code> (90) are dropped; counts and grades are kept so your statistics stay correct.</p>
+
+    <h2 id="masks">What it masks</h2>
+    <table>
+      <thead><tr><th>Kind</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td>Provider keys</td><td>OpenAI, Anthropic, OpenRouter, Google, Stripe, Hugging Face, Modal</td></tr>
+        <tr><td>Tokens</td><td>GitHub, AWS access keys, Slack, JWTs, bearer tokens</td></tr>
+        <tr><td>Private keys</td><td>Any <code>BEGIN ... PRIVATE KEY</code> block</td></tr>
+        <tr><td>Credentials in text</td><td><code>password=</code>, <code>token:</code>, <code>user:pass@</code> inside URLs</td></tr>
+        <tr><td>Random strings</td><td>Long, high-entropy values that look like secrets</td></tr>
+        <tr><td>Personal details</td><td>Emails, phone numbers, card numbers (Luhn checked), IBANs</td></tr>
+        <tr><td>Your machine</td><td>Your home folder and login name</td></tr>
+      </tbody>
+    </table>
+    <p>Masks look like <code>[REDACTED:email]</code>. Git hashes, UUIDs, dates, version numbers and file paths are left alone on purpose, because they are useful and not secret. A step with more than five masked secrets or personal details is kept for statistics but never trained on.</p>
+
+    <h2 id="sends">What it sends</h2>
+    <p><b>During normal use: nothing.</b> The router only talks to <code>student_endpoint</code>, which is Hermes's own local model server on <code>127.0.0.1</code> by default.</p>
+    <p><b>When you start a training run:</b> Tironian's separate trainer process uploads that one family's masked training examples to a private Volume in <b>your own</b> Modal account, trains there, downloads the model and deletes the job's files from the Volume. Held-out examples used for testing never leave your machine.</p>
+    <p><b>If you switch on the judge</b> (off by default): held-out examples are sent to whichever model you assign to the "Tironian judge" slot in Hermes.</p>
+    <p>There is no telemetry, no analytics and no account.</p>
+
+    <h2 id="control">Your controls</h2>
+    <table>
+      <thead><tr><th>Do this</th><th>To</th></tr></thead>
+      <tbody>
+        <tr><td><code>/tironian off</code></td><td>Stop learning from the current conversation and exclude what was captured</td></tr>
+        <tr><td>Delete a session in Hermes</td><td>Delete everything Tironian kept from it</td></tr>
+        <tr><td><code>capture_enabled: false</code></td><td>Stop capture everywhere</td></tr>
+        <tr><td><code>exclude_platforms</code></td><td>Never learn from chosen platforms (cron and kanban by default)</td></tr>
+        <tr><td><code>hermes tironian purge --yes</code></td><td>Delete everything Tironian captured</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="promises">Promises about answers</h2>
+    <ul>
+      <li>Your usual model is called at most once per request, and any failure inside Tironian falls through to it.</li>
+      <li>A small model answers only after passing a held-out test on your own sessions, and only for its own task.</li>
+      <li>Every answer it gives must parse, use a tool the request offers and pass that tool's schema; otherwise your model answers.</li>
+      <li>After any failed or blocked step, your model finishes the turn.</li>
+      <li>Hermes's approvals apply to the small model's tool calls exactly as they do to your model's.</li>
+      <li>A model that falls back too often, or that you mark bad twice, is demoted to shadow mode by itself.</li>
+    </ul>
+
+    <h2 id="runs">What it runs</h2>
+    <p>Inside Hermes, Tironian uses only the Python standard library and installs nothing. <code>hermes tironian trainer setup</code>, which you run yourself, creates a separate environment in the plugin's data folder and installs the Modal client from PyPI (<code>--local</code> also installs the training libraries). Training runs there as its own process, only when you start it. Cron jobs, the gateway and model turns can never start a training run.</p>
+
+    <h2 id="report">Reporting a problem</h2>
+    <p>Found something that leaks, or a secret that wasn't masked? Please <a href="https://github.com/angelraph/tironian/issues">open an issue</a> without including the secret itself, and describe its shape instead (for example "a key starting with xyz_ followed by 40 letters").</p>
+  </article>
+</div>
+
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <img src="/assets/wordmark.png" alt="Tironian. Train, route, ship." width="160">
+        <p>A Hermes Agent plugin that turns the work you already do into a small model of your own.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="/how-it-works">How it works</a>
+        <a href="/pricing">Cost</a>
+        <a href="/privacy">Privacy and safety</a>
+        <a href="/changelog">Changelog</a>
+      </div>
+      <div class="foot-col">
+        <h4>Docs</h4>
+        <a href="/docs#install">Install</a>
+        <a href="/docs#first-model">Your first model</a>
+        <a href="/docs#cli">CLI reference</a>
+        <a href="/docs#settings">Settings</a>
+        <a href="/docs#troubleshooting">Troubleshooting</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/angelraph/tironian">Source code</a>
+        <a href="https://github.com/angelraph/tironian/issues">Report a problem</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/README.md">README</a>
+        <a href="https://github.com/angelraph/tironian/blob/master/LICENSE">MIT license</a>
+      </div>
+      <div class="foot-col">
+        <h4>Hermes</h4>
+        <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/plugins">Plugin marketplace</a>
+        <a href="https://hermes-agent.nousresearch.com/docs/developer-guide/plugins">Plugin guide</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Named after Tiro, Cicero's secretary, who invented a shorthand to carry his master's work forward.</span>
+      <span>MIT licensed · No telemetry · Keyboard: <kbd>I</kbd> copy install <kbd>D</kbd> docs <kbd>F</kbd> FAQ <kbd>G</kbd> GitHub</span>
+    </div>
+  </div>
+</footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

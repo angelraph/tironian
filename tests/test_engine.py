@@ -193,3 +193,19 @@ def test_anthropic_capture_normalizes(app_factory):
     run_turn(app, "hi", lambda r: resp, api_mode="anthropic_messages", req=req)
     out = json.loads(app.store.scalar("SELECT output_json FROM decisions"))
     assert out["content"] == "hello" and out["tool_calls"][0]["function"]["name"] == "terminal"
+
+
+def test_capture_runs_in_background_and_never_delays_the_turn(app_factory):
+    """Masking and storage happen after the model's answer is handed back."""
+    import time as _t
+    app = app_factory(async_capture=True)
+    big = request("x " * 20000)
+    app.engine.pre_llm_call(session_id="s1", turn_id="t1", user_message="hello", platform="cli")
+    started = _t.perf_counter()
+    for i in range(3):
+        app.engine.llm_execution(request=big, next_call=Teacher(), session_id="s1", turn_id="t1",
+                                 api_request_id=f"t1:{i}", api_mode="chat_completions")
+    assert _t.perf_counter() - started < 0.5
+    assert app.engine.flush()
+    rows = app.store.q("SELECT call_idx FROM decisions ORDER BY call_idx")
+    assert [r["call_idx"] for r in rows] == [0, 1, 2]

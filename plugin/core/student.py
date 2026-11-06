@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import json
 import time
-import urllib.error
-import urllib.request
 import uuid
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -41,6 +39,9 @@ class StudentClient:
 
     def complete(self, model_id: str, messages: Sequence[dict[str, str]], *,
                  max_tokens: int = 768, temperature: float = 0.0) -> StudentReply:
+        import urllib.error
+        import urllib.request
+
         body = json.dumps({
             "model": model_id, "messages": list(messages), "temperature": temperature,
             "max_tokens": max_tokens, "stream": False,
@@ -71,6 +72,8 @@ class StudentClient:
                             int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0))
 
     def available_models(self) -> list[str]:
+        import urllib.request
+
         try:
             with urllib.request.urlopen(self.endpoint + "/models", timeout=3) as resp:  # noqa: S310
                 data = json.loads(resp.read().decode("utf-8"))

@@ -125,8 +125,23 @@ class Redactor:
         self._usernames = sorted({n for n in names if n and len(n) >= 3}, key=len, reverse=True)
 
     def redact_text(self, text: str) -> RedactionResult:
+        """Mask one string. Long strings are cached: each model call resends the whole
+        conversation, so the same system prompt and history would otherwise be scanned
+        again on every step."""
         if not text:
             return RedactionResult(text or "")
+        if len(text) < 64:
+            return self._redact(text)
+        cache = self.__dict__.setdefault("_cache", {})
+        hit = cache.get(text)
+        if hit is None:
+            hit = self._redact(text)
+            if len(cache) >= 2048:
+                cache.pop(next(iter(cache)))
+            cache[text] = hit
+        return RedactionResult(hit.text, dict(hit.hits))
+
+    def _redact(self, text: str) -> RedactionResult:
         hits: dict[str, int] = {}
 
         def bump(kind: str) -> None:

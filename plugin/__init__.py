@@ -31,14 +31,16 @@ def _safe(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def register(ctx: Any) -> None:
-    from .core import cli, commands
-    from .core.app import get_app
+    # Keep registration cheap: Hermes loads plugins on every start. Heavier modules are
+    # imported on first use (first hook call, first /tironian, first hermes tironian).
+    from .core import cli_args
 
     state: dict[str, Any] = {}
 
     def app() -> Any:
         # Lazy: the database opens on first use, never during plugin discovery.
         if "app" not in state:
+            from .core.app import get_app
             state["app"] = get_app(config_get=lambda k, default=None: ctx.get_config(k, default=default),
                                    llm=getattr(ctx, "llm", None))
         return state["app"]
@@ -65,6 +67,7 @@ def register(ctx: Any) -> None:
     ctx.register_middleware("llm_execution", llm_execution)
 
     def slash(raw: str, *, session_id: str = "", platform: str = "", **kw: Any) -> str:
+        from .core import commands
         a = app()
         a.first_run()
         ask = getattr(ctx, "ask_choice", None)
@@ -73,7 +76,7 @@ def register(ctx: Any) -> None:
     ctx.register_command("tironian", handler=slash, description="Your personal model: status, report, train, promote",
                          args_hint="[status|report|families|good|bad|off|on|train|shadow|promote|demote|why]")
     ctx.register_cli_command(name="tironian", help="Distill your Hermes work into a personal local model",
-                             setup_fn=cli.setup, handler_fn=cli.run)
+                             setup_fn=cli_args.setup, handler_fn=cli_args.run)
 
     register_aux = getattr(ctx, "register_auxiliary_task", None)
     if callable(register_aux):

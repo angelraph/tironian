@@ -16,7 +16,6 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from . import jobs, pipeline
 from .config import PLUGIN_ID, Settings
 from .engine import Engine, reentrant
 from .redact import Redactor
@@ -145,6 +144,7 @@ class App:
         return self.run_bg("import", self._do_import)
 
     def _do_import(self) -> dict[str, Any]:
+        from . import jobs, pipeline
         res = pipeline.import_history(self.store, self.state_db, self.redactor)
         fams = pipeline.rebuild_families(self.store, self.settings())
         self.store.meta_set("first_import_done", str(time.time()))
@@ -176,6 +176,7 @@ class App:
         return {k: v for k in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if (v := self.secret(k) or "")}
 
     def prepare_training(self, family_id: str) -> dict[str, Any]:
+        from . import jobs, pipeline
         s = self.settings()
         ds = pipeline.build_dataset(self.store, s, family_id, self.data_dir / "datasets")
         est = jobs.estimate(ds.n_train, s)
@@ -184,6 +185,7 @@ class App:
                 "enough": ds.n_train >= 8 and ds.n_heldout >= 1}
 
     def start_training(self, family_id: str, dataset_id: str, *, backend: str | None = None) -> str:
+        from . import jobs, pipeline
         s = self.settings()
         if (backend or s.train_backend) == "modal" and len(self.modal_secrets()) < 2:
             raise RuntimeError("add your Modal token in Settings → Plugins → Tironian first")
@@ -193,6 +195,7 @@ class App:
         return jid
 
     def poll_job(self, job_id: str) -> dict[str, Any] | None:
+        from . import jobs, pipeline
         row = jobs.reconcile(self.store, self.data_dir, job_id)
         if row and row["status"] == "done" and not self.store.one("SELECT 1 FROM students WHERE job_id=?", (job_id,)):
             path = jobs.install_student(self.store, self.data_dir, job_id)
@@ -204,6 +207,7 @@ class App:
         return row
 
     def evaluate(self, student_id: str, *, limit: int | None = None) -> dict[str, Any]:
+        from . import jobs, pipeline
         st = self.store.one("SELECT * FROM students WHERE id=?", (student_id,))
         if st is None:
             raise ValueError("unknown student")

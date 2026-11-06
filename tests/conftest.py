@@ -116,9 +116,10 @@ def app_factory(tmp_path):
 
     made = []
 
-    def make(**settings):
+    def make(async_capture=False, **settings):
         a = App(data_dir=tmp_path / "plugin-data" / "tironian", config_get=lambda k, default=None: settings.get(k, default),
                 secret=lambda n: None, broadcast=lambda k, p: None)
+        a.engine.sync_capture = not async_capture
         made.append(a)
         return a
 

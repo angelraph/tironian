@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import queue
 import threading
 import time
 from collections import OrderedDict
@@ -94,6 +95,10 @@ class Engine:
     _promoted_at: float = 0.0
     _lock: threading.RLock = field(default_factory=threading.RLock)
     _shadow_busy: threading.Lock = field(default_factory=threading.Lock)
+    sync_capture: bool = False
+    dropped: int = 0
+    _queue: "queue.Queue[Any]" = field(default_factory=lambda: queue.Queue(maxsize=256))
+    _worker: threading.Thread | None = None
 
     # Helpers
     def _emit(self, kind: str, payload: dict[str, Any]) -> None:
@@ -364,7 +369,7 @@ class Engine:
         response = next_call(request)  # the teacher; never called twice
         latency = int((time.monotonic() - started) * 1000)
         try:
-            self._capture(kw, request, response, latency, served_by="teacher")
+            self._capture_soon(kw, request, response, latency)
             if plan is not None and plan["mode"] == "shadow":
                 self._shadow(plan, kw, response)
         except Exception:
@@ -506,8 +511,51 @@ class Engine:
         self._emit("family.status", {"family": family_id, "status": status, "reason": reason})
 
     # Capture
+    def _capture_soon(self, kw: dict[str, Any], request: dict[str, Any], response: Any, latency_ms: int) -> None:
+        """Hand the step to a background worker so the turn never waits on masking and storage.
+
+        The turn's step counter advances here, synchronously, so steps keep their order. If the
+        queue is full (a burst on a slow disk), the step is dropped from capture, never delayed.
+        """
+        if not self.settings().capture_enabled:
+            return
+        st = self._turn(kw.get("turn_id"))
+        if st is None:
+            return
+        idx = st.call_idx
+        st.call_idx += 1
+        item = (dict(kw), request, response, latency_ms, idx)
+        if self.sync_capture:
+            self._capture(*item[:4], served_by="teacher", call_idx=idx)
+            return
+        with self._lock:
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = threading.Thread(target=self._capture_worker, name="tironian-capture", daemon=True)
+                self._worker.start()
+        try:
+            self._queue.put_nowait(item)
+        except queue.Full:
+            self.dropped += 1
+
+    def _capture_worker(self) -> None:
+        while True:
+            kw, request, response, latency_ms, idx = self._queue.get()
+            try:
+                self._capture(kw, request, response, latency_ms, served_by="teacher", call_idx=idx)
+            except Exception:
+                log.debug("tironian capture failed", exc_info=True)
+            finally:
+                self._queue.task_done()
+
+    def flush(self, timeout: float = 10.0) -> bool:
+        """Wait until captured steps are written (used by commands that read right after a turn)."""
+        end = time.monotonic() + timeout
+        while self._queue.unfinished_tasks and time.monotonic() < end:
+            time.sleep(0.01)
+        return not self._queue.unfinished_tasks
+
     def _capture(self, kw: dict[str, Any], request: dict[str, Any], response: Any, latency_ms: int,
-                 *, served_by: str) -> None:
+                 *, served_by: str, call_idx: int) -> None:
         s = self.settings()
         if not s.capture_enabled:
             return
@@ -531,15 +579,14 @@ class Engine:
         cost = out.get("cost")
         if cost is None:
             cost = (out["in_tok"] * s.teacher_usd_per_mtok_in + out["out_tok"] * s.teacher_usd_per_mtok_out) / 1e6
-        did = str(kw.get("api_request_id") or f"{st.turn_id}:{st.call_idx}")
+        did = str(kw.get("api_request_id") or f"{st.turn_id}:{call_idx}")
         self.store.upsert("decisions", {
-            "id": did, "turn_id": st.turn_id, "session_id": st.session_id, "call_idx": st.call_idx,
+            "id": did, "turn_id": st.turn_id, "session_id": st.session_id, "call_idx": call_idx,
             "api_mode": api_mode, "provider": kw.get("provider"), "model": kw.get("model"),
             "tools_hash": tools_hash, "context_z": compress(red_msgs), "output_json": json.dumps(red_out, ensure_ascii=False),
             "finish_reason": out.get("finish_reason"), "in_tok": out["in_tok"], "out_tok": out["out_tok"],
             "cost_usd": float(cost), "latency_ms": latency_ms, "served_by": served_by,
             "redaction_hits": hits, "created_at": self.clock()})
-        st.call_idx += 1
 
     # Stats
     def summary(self) -> dict[str, Any]:

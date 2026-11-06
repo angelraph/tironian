@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tironian</title>
+<meta name="description" content="A Hermes Agent plugin that trains a small local model on your own work, tests it on your past sessions, and lets it take over the routine requests it has proven it can handle.">
+<meta property="og:title" content="Tironian">
+<meta property="og:description" content="Your own small model, learned from your own Hermes work.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23b4542d'/%3E%3Cpath d='M9 10h14M16 10v13' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap row">
+    <a class="mark" href="/">Tironian</a>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#promises">Promises</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/angelraph/tironian">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <p class="eyebrow">A plugin for Hermes Agent</p>
+    <h1>Your own small model, learned from your own work.</h1>
+    <p class="lede">Tironian watches the work you already do with Hermes, trains a small model on the
+      tasks you keep repeating, tests it against your own past sessions, and only then lets it answer.
+      If it is ever unsure, your usual model answers instead, and you never notice.</p>
+    <div class="install">
+      <code>hermes plugins install angelraph/tironian</code>
+      <button type="button" class="copy" data-copy="hermes plugins install angelraph/tironian">Copy</button>
+    </div>
+  </section>
+
+  <section class="wrap measured">
+    <div class="stat"><span class="num">17 s</span><span class="lbl">a routed request on the author's laptop</span></div>
+    <div class="stat"><span class="num">5 min 44 s</span><span class="lbl">the same request on the hosted model</span></div>
+    <div class="stat"><span class="num">0</span><span class="lbl">bytes Tironian sends anywhere before you start a training run</span></div>
+    <p class="small">Measured on Hermes v0.22.7 with a free Nous Portal model as the teacher. The first number
+      came from a stand-in model used to test routing; it shows the overhead Tironian adds, not the quality of a trained model.</p>
+  </section>
+
+  <section id="how" class="wrap">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><h3>It records what Hermes does</h3><p>Every model step and tool run, with secrets and personal details masked before anything touches the disk.</p></li>
+      <li><h3>It grades each turn from what happened</h3><p>Did the commands succeed? Did you correct it, ask again, deny an approval, or mark it with <code>/tironian bad</code>? The model's opinion of itself never counts.</p></li>
+      <li><h3>It finds the tasks you repeat</h3><p>"What is eating space in Downloads" and "which files take up the most room in Videos" end up in the same family. Plain code, so the same history always gives the same answer.</p></li>
+      <li><h3>It trains a small model per family</h3><p>Qwen3 1.7B with LoRA, exported as a quantized GGUF file. On a GPU in your own Modal account for about $0.30 with a hard cap, or free on your own NVIDIA card.</p></li>
+      <li><h3>It tests the model on sessions it never saw</h3><p>The model is promoted only if the lower end of the 95% confidence interval on its pass rate reaches 85%. A model that is merely lucky does not get through.</p></li>
+      <li><h3>It routes, and checks every answer</h3><p>Matching requests go to the small model through Hermes's local model runtime. Its answer must parse, use a tool the request offers, and pass that tool's schema. Otherwise your model answers.</p></li>
+    </ol>
+  </section>
+
+  <section id="promises" class="wrap">
+    <h2>What it promises</h2>
+    <ul class="promises">
+      <li>Your usual model is called at most once per request, and any failure inside Tironian falls through to it.</li>
+      <li>After a failed or blocked tool step, your model finishes the turn. Recovering from mistakes is where small models are weakest.</li>
+      <li>Hermes's own approvals and guardrails apply to the small model's tool calls too. It cannot get around them.</li>
+      <li>A model that falls back more than 10% of the time, or that you mark bad twice, steps back to shadow mode on its own.</li>
+      <li>Only answers from your own model, in turns that went well, are ever trained on.</li>
+    </ul>
+  </section>
+
+  <section id="privacy" class="wrap">
+    <h2>What stays on your machine</h2>
+    <p>Everything, until you press Train. Tironian reads your Hermes history read only, keeps its own
+      database inside Hermes's plugin data folder, and drops recorded contexts after 90 days. Deleting a
+      session in Hermes deletes it from Tironian too, and <code>/tironian off</code> stops recording a
+      conversation. When you do start a training run, that family's masked examples go to a private
+      volume in your own Modal account, the model comes back, and the files are deleted from the volume.
+      No telemetry.</p>
+  </section>
+
+  <section class="wrap start">
+    <h2>Try it</h2>
+<pre><code>hermes plugins install angelraph/tironian
+hermes plugins enable tironian
+
+# in any Hermes session
+/tironian report</code></pre>
+    <p>The report reads your existing history, so it has something to show straight away. It needs no keys and costs nothing.</p>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Named after Tiro, Cicero's secretary, who learned his master's work well enough to invent a shorthand for it.</p>
+  <p><a href="https://github.com/angelraph/tironian">Source on GitHub</a> · MIT license</p>
+</footer>
+
+<script>
+  for (const b of document.querySelectorAll('[data-copy]')) {
+    b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy'), 1500) } catch {}
+    })
+  }
+</script>
+</body>
+</html>

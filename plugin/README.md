@@ -4,6 +4,8 @@ A Hermes Agent plugin that trains a small local model on the work you already do
 tests it against your own past sessions, and lets it take over the routine requests it has
 proven it can handle.
 
+Site: https://tironian.vercel.app
+
 The name comes from Tiro, Cicero's secretary. He learned his master's work well enough to
 invent a shorthand for it and keep it going.
 

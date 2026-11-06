@@ -64,11 +64,16 @@ def import_history(store: Store, state_db: Path, redactor: Redactor, *, since_da
             msg_filter.append("(compacted IS NULL OR compacted=0)")
         mwhere = (" AND " + " AND ".join(msg_filter)) if msg_filter else ""
         n_sessions = n_turns = n_decisions = 0
+        # A session Tironian captured live is already here with full detail; importing it again
+        # would put the same conversation in the data twice (and maybe on both sides of the split).
+        for (dup,) in store.q("SELECT h.id FROM sessions h JOIN sessions l ON l.id = substr(h.id, 3) "
+                              "WHERE h.id LIKE 'h:%'"):
+            store.purge_session(dup)
         for s in sessions:
             if (s["source"] or "") in exclude_sources:
                 continue
             sid = "h:" + s["id"]
-            if store.one("SELECT 1 FROM sessions WHERE id=?", (sid,)):
+            if store.one("SELECT 1 FROM sessions WHERE id IN (?, ?)", (sid, s["id"])):
                 continue
             rows = src.execute(
                 f"SELECT role, content, tool_calls, tool_call_id, tool_name, timestamp FROM messages "
@@ -177,7 +182,9 @@ def rebuild_families(store: Store, settings: Settings) -> list[dict[str, Any]]:
         tools_by_turn.setdefault(r["turn_id"], []).append(r["name"] or "")
     items = [fam.Item(r["id"], r["user_text"], tools_by_turn.get(r["id"], [])) for r in rows]
     labels = {r["id"]: r["label"] for r in rows}
-    clusters = fam.cluster(items)
+    common = fam.common_features([fam.features(i.user_text, i.tools, i.skill) for i in items])
+    clusters = fam.cluster(items, common=common)
+    store.meta_set("common_features", json.dumps(sorted(common)))
 
     old = {r["id"]: r for r in store.q("SELECT * FROM families")}
     old_members: dict[str, set[str]] = {}

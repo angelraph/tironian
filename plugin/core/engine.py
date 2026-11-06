@@ -315,6 +315,10 @@ class Engine:
             out.append(PromotedFamily(f, r["status"], r["model_id"], json.loads(r["toolset_json"] or "[]"),
                                       float(avg or 0.0)))
         self._promoted, self._promoted_at = out, now
+        try:
+            self._common = frozenset(json.loads(self.store.meta_get("common_features") or "[]"))
+        except (TypeError, ValueError):
+            self._common = frozenset()
         return out
 
     def invalidate(self) -> None:
@@ -324,8 +328,10 @@ class Engine:
         promoted = self.promoted()
         if not promoted:
             return None
-        feats = fam.features(st.user_text)
-        m = fam.match(feats, [p.family for p in promoted])
+        # Match the way families were built, minus what can't be known yet: which tools the turn
+        # will use. Both sides are compared on the request's words only.
+        feats = frozenset(fam.features(st.user_text) - getattr(self, "_common", frozenset()))
+        m = fam.match(feats, [p.family for p in promoted], text_only=True)
         if m.family_id is None or m.similarity < s.route_confidence_min or m.margin < s.route_margin_min:
             return None
         chosen = next(p for p in promoted if p.family.id == m.family_id)

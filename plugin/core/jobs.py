@@ -36,6 +36,22 @@ _OVERHEAD_S = {"qwen3-1.7b": 420, "qwen3-4b": 600}      # container start + load
 _S_PER_EXAMPLE_EPOCH = {"qwen3-1.7b": 0.55, "qwen3-4b": 1.3}
 
 
+_LEAKY_ENV = ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "VIRTUAL_ENV", "CONDA_PREFIX", "UV_PROJECT_ENVIRONMENT")
+
+
+def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment for the sidecar's Python with none of Hermes's own Python settings.
+
+    Hermes runs plugins with its interpreter's paths in the environment. Passed on, they make
+    pip think the trainer's dependencies are already installed (they are, but in Hermes's
+    venv), and the sidecar later fails to import them on its own.
+    """
+    env = {k: v for k, v in os.environ.items()
+           if k not in _LEAKY_ENV and not k.startswith(("PIP_", "MODAL_"))}
+    env.update({k: v for k, v in (extra or {}).items() if v})
+    return env
+
+
 def sidecar_python(data_dir: Path) -> Path:
     base = data_dir / "sidecar"
     return base / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
@@ -52,14 +68,15 @@ def setup_sidecar(data_dir: Path, *, python: str | None = None, extra: str | Non
     py = python or sys.executable
     try:
         if not sidecar_python(data_dir).exists():
-            subprocess.run([py, "-m", "venv", str(venv)], check=True, capture_output=True, timeout=300)
+            subprocess.run([py, "-m", "venv", str(venv)], check=True, capture_output=True, timeout=300, env=clean_env())
         req = TRAINER_DIR / ("requirements-train.txt" if extra == "local" else "requirements-sidecar.txt")
         subprocess.run([str(sidecar_python(data_dir)), "-m", "pip", "install", "--disable-pip-version-check",
-                        "-q", "-r", str(req)], check=True, capture_output=True, timeout=1800)
+                        "-q", "-r", str(req)], check=True, capture_output=True, timeout=1800,
+                       env=clean_env())
         if extra == "local":
             subprocess.run([str(sidecar_python(data_dir)), "-m", "pip", "install", "-q", "-r",
                             str(TRAINER_DIR / "requirements-sidecar.txt")], check=True, capture_output=True,
-                           timeout=600)
+                           timeout=600, env=clean_env())
         (venv / ".tironian-ready").write_text(time.strftime("%Y-%m-%dT%H:%M:%S"))
         return True, f"trainer ready ({venv})"
     except subprocess.CalledProcessError as exc:
@@ -116,8 +133,7 @@ def start(store: Store, data_dir: Path, s: Settings, *, dataset_id: str, family_
 
 def _spawn(data_dir: Path, jdir: Path, secrets: dict[str, str], *, dry: bool) -> None:
     py = str(sys.executable if dry else sidecar_python(data_dir))
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("MODAL_", "OPENAI", "ANTHROPIC", "OPENROUTER"))}
-    env.update({k: v for k, v in secrets.items() if v})
+    env = {k: v for k, v in clean_env(secrets).items() if not k.startswith(("OPENAI", "ANTHROPIC", "OPENROUTER"))}
     env["PYTHONUNBUFFERED"] = "1"
     log = open(jdir / "driver.log", "ab")
     kwargs: dict[str, Any] = {"stdin": subprocess.DEVNULL, "stdout": log, "stderr": log, "env": env,
@@ -133,8 +149,7 @@ def check_modal(data_dir: Path, secrets: dict[str, str]) -> tuple[bool, str]:
     """Run the driver's credential check in the sidecar (no compute, no cost)."""
     if not sidecar_ready(data_dir):
         return False, "trainer not set up yet: run `hermes tironian trainer setup`"
-    env = {k: v for k, v in os.environ.items() if not k.startswith("MODAL_")}
-    env.update({k: v for k, v in secrets.items() if v})
+    env = clean_env(secrets)
     try:
         out = subprocess.run([str(sidecar_python(data_dir)), str(TRAINER_DIR / "driver.py"), "--check"],
                              capture_output=True, text=True, timeout=120, env=env)

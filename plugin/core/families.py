@@ -20,6 +20,8 @@ _PATH = re.compile(r"(?:[A-Za-z]:)?(?:[~./\\][\w.\-]*)?(?:[/\\][\w.\-~]+)+[/\\]?
 _QUOTED = re.compile(r"\"[^\"]{1,200}\"|'[^']{1,200}'|`[^`]{1,200}`")
 _NUM = re.compile(r"\b\d+(?:[.,:]\d+)*\b")
 _WORD = re.compile(r"[a-z][a-z0-9_\-]*|<[a-z]+>")
+_EXT = re.compile(r"(?<![\w])\.(?:[a-z0-9]{1,5})\b", re.IGNORECASE)
+_NAME = re.compile(r"([a-z,;:]\s+)(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)")
 _REDACTED = re.compile(r"\[REDACTED:[a-z_]+\]")
 
 # Words that carry no task signal. Kept short on purpose: verbs like "find", "list", "fix" stay.
@@ -30,6 +32,21 @@ some any all into about up out over do does did there here what which who how wh
 """.split())
 
 
+# Different words people use for the same request. Phrases are matched before single words.
+# Kept small and boring on purpose: it should merge obvious paraphrases, not guess intent.
+_SYNONYMS: list[tuple[re.Pattern[str], str]] = [(re.compile(rf"\b(?:{a})\b"), b) for a, b in [
+    (r"take(?:s)? up the most (?:space|room)|use(?:s)? the most (?:space|room)|eating (?:up )?(?:space|disk)|"
+     r"biggest|largest|heaviest", "largest"),
+    (r"most recently (?:modified|changed|edited|updated)|changed most recently|modified most recently|"
+     r"newest|latest|most recent|recently (?:modified|changed)", "recent"),
+    (r"how many|count|number of", "count"),
+    (r"directory|directories|dir|folders?", "folder"),
+    (r"show(?: me)?|list|display|find|give me|tell me|what are|which", "show"),
+    (r"turn into|transform|convert(?:ing)?|change into", "convert"),
+    (r"summari[sz]e|sum up|tl;?dr|give (?:me )?a summary of", "summarize"),
+]]
+
+
 def normalize(text: str) -> str:
     """Collapse the variable parts of a request so the *shape* of the task remains."""
     t = text or ""
@@ -37,9 +54,28 @@ def normalize(text: str) -> str:
     t = _URL.sub(" <url> ", t)
     t = _QUOTED.sub(" <s> ", t)
     t = _PATH.sub(" <path> ", t)
+    # Arguments, not task: ".pdf" files, and names written with a capital mid-sentence
+    # ("in my Downloads folder", "email Sarah"). The first word of a sentence keeps its case meaning.
+    t = _EXT.sub(" <ext> ", t)
+    t = _NAME.sub(lambda m: m.group(1) + " <name>", t)
     t = t.lower()
     t = _NUM.sub(" <n> ", t)
+    for pat, word in _SYNONYMS:
+        t = pat.sub(word, t)
     return " ".join(t.split())
+
+
+def common_features(item_feats: Sequence[frozenset[str]], *, max_df: float = 0.5, min_items: int = 20) -> frozenset[str]:
+    """Features present in more than ``max_df`` of all requests say nothing about *which* task
+    it is ("use the terminal", "my", the one tool everything uses). They are ignored."""
+    n = len(item_feats)
+    if n < min_items:
+        return frozenset()
+    df: dict[str, int] = {}
+    for fs in item_feats:
+        for f in fs:
+            df[f] = df.get(f, 0) + 1
+    return frozenset(f for f, c in df.items() if c / n > max_df)
 
 
 def features(user_text: str, tools: Sequence[str] = (), skill: str | None = None) -> frozenset[str]:
@@ -132,15 +168,20 @@ class Item:
     skill: str | None = None
 
 
-def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: int = 8) -> list[Family]:
+def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: int = 8,
+            common: frozenset[str] | None = None, merge_at: float | None = None) -> list[Family]:
     """Deterministic leader clustering in input (time) order, then a merge pass.
 
     Each item joins the most similar family above ``threshold`` or starts a new one. Family ids
-    are content hashes of their first member, so they are stable across re-runs.
+    are content hashes of their first member, so they are stable across re-runs. Features in
+    ``common`` (see :func:`common_features`) are ignored.
     """
+    all_feats = [features(it.user_text, it.tools, it.skill) for it in items]
+    if common is None:
+        common = common_features(all_feats)
     families: list[Family] = []
-    for it in items:
-        feats = features(it.user_text, it.tools, it.skill)
+    for it, raw in zip(items, all_feats):
+        feats = frozenset(raw - common)
         if not feats:
             continue
         best, best_sim = None, 0.0
@@ -162,7 +203,7 @@ def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: in
             for j in range(i + 1, len(families)):
                 a, b = families[i], families[j]
                 link = max((a.similarity(e) for e in b.exemplars), default=0.0)
-                if link >= threshold + 0.15:
+                if link >= (threshold + 0.15 if merge_at is None else merge_at):
                     for tid in b.members:
                         a.members.append(tid)
                     for e in b.exemplars:
@@ -188,9 +229,21 @@ class RouteMatch:
     margin: float
 
 
-def match(feats: frozenset[str], families: Sequence[Family]) -> RouteMatch:
-    """Best family for a new request, with the margin over the runner-up (ambiguity guard)."""
-    scored = sorted(((f.similarity(feats), f.id) for f in families), reverse=True)
+def _text_only(fs: frozenset[str]) -> frozenset[str]:
+    return frozenset(f for f in fs if not f.startswith(("T:", "S:")))
+
+
+def match(feats: frozenset[str], families: Sequence[Family], *, text_only: bool = False) -> RouteMatch:
+    """Best family for a new request, with the margin over the runner-up (ambiguity guard).
+
+    ``text_only`` compares words only, for requests whose tool use isn't known yet.
+    """
+    if text_only:
+        feats = _text_only(feats)
+        sims = [(max((jaccard(feats, _text_only(e)) for e in f.exemplars), default=0.0), f.id) for f in families]
+    else:
+        sims = [(f.similarity(feats), f.id) for f in families]
+    scored = sorted(sims, reverse=True)
     if not scored:
         return RouteMatch(None, 0.0, 0.0)
     best_sim, best_id = scored[0]

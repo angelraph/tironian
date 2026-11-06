@@ -360,6 +360,14 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
     rng = random.Random(seed)
     rng.shuffle(sessions)
     n_hold = max(1, round(len(sessions) * heldout_share)) if len(sessions) > 1 else 0
+    # The gate needs min_eval_n held-out steps; with fewer, even a perfect student can't pass.
+    # Hold out more sessions until it has them, but never more than 40% of the family.
+    steps = {}
+    for sid, _, _ in examples:
+        steps[sid] = steps.get(sid, 0) + 1
+    cap = int(len(sessions) * 0.4)
+    while n_hold < cap and sum(steps[s] for s in sessions[:n_hold]) < settings.min_eval_n:
+        n_hold += 1
     held_sessions = set(sessions[:n_hold])
 
     ds_id = "ds-" + hashlib.sha1(f"{family_id}:{seed}:{len(examples)}:{time.time()}".encode()).hexdigest()[:10]

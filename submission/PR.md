@@ -42,7 +42,7 @@ No tools, no core overrides, no `sys.modules` or `setattr` on Hermes objects. Th
 2. `python -m pytest tests -q` in the repo: 54 tests covering redaction, grading, clustering, the dataset split, the Wilson gate, and every routing fallback path (malformed output, unknown tool, schema failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion, shadow mode never blocking).
 3. Without any spend: `hermes plugins enable tironian`, then `/tironian report` in any session, and `hermes tironian train <family> --backend dry-run --follow`.
 
-Checked live on Hermes v0.22.7 on Windows: validate and doctor pass, capture records streaming turns, and a small model answered a real turn through the middleware; when Hermes blocked its command, the user's model took over and finished the task.
+`validate`, `doctor` and the tests also pass on v0.23.0. Checked live on Hermes v0.22.7 on Windows: validate and doctor pass, capture records streaming turns, and a small model answered a real turn through the middleware; when Hermes blocked its command, the user's model took over and finished the task.
 
 ## Screenshots
 

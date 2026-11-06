@@ -238,10 +238,16 @@ class App:
 
         def listed(c: StudentClient) -> bool:
             return any(model_matches(m, st["model_id"]) for m in c.available_models())
-        client = self.student_client(st["model_id"])
+        # The test measures answers, not the routing deadline: a slow CPU gets time to finish, and
+        # its speed is still reported (p50) so the user can see it.
+        def eval_client() -> StudentClient:
+            c = self.student_client(st["model_id"])
+            c.timeout_s = max(180.0, float(self.settings().student_timeout_s))
+            return c
+        client = eval_client()
         if not listed(client):
             ok, msg = self.serve_student(student_id)
-            client = self.student_client(st["model_id"])
+            client = eval_client()
             if not listed(client):
                 raise RuntimeError(
                     f"the local model server doesn't list '{st['model_id']}' ({msg}). Install Ollama, or load "

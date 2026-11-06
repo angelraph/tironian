@@ -7,7 +7,8 @@ had and produces its next step. That step passes only if:
 * it parses (valid tool-call JSON, no stray tags),
 * it takes the same kind of action (tool call vs. final answer),
 * it calls the same tool(s) with schema-valid arguments that match the teacher's
-  (≥ ``ARGS_PASS`` of keys equal after normalisation), and
+  (≥ ``ARGS_PASS`` of keys equal after normalisation; long free-text values such as shell
+  commands match when ≥ ``FREE_TEXT_PASS`` of their words agree), and
 * for a final answer, a blind pairwise judge rates it as good as the teacher's (or, without a
   judge, its token-level F1 against the teacher's answer is ≥ ``TEXT_F1_PASS``).
 
@@ -61,11 +62,39 @@ def _norm_val(v: Any) -> Any:
     return v
 
 
+#: Two long free-text values (a shell command, a search query) count as the same when this share
+#: of their words agree. Exact equality would fail `find "$HOME/Videos" -iname '*.docx'` against
+#: `find ~/Videos -type f -iname "*.docx"`, which do the same thing.
+FREE_TEXT_PASS = 0.6
+
+_HOME = re.compile(r"(?i)(?:\$\{?home\}?|\$\{?userprofile\}?|%userprofile%|(?:/c|c:)?/users/(?:\[redacted:user\]|[^/\s\"']+))")
+_LOCALAPPDATA = re.compile(r"(?i)\$\{?localappdata\}?|%localappdata%")
+_NOISE = {"2>/dev/null", "2>nul", "2>&1"}
+
+
+def _words(s: str) -> set[str]:
+    s = s.replace("\\", "/")
+    s = _LOCALAPPDATA.sub("~/appdata/local", s)
+    s = _HOME.sub("~", s)
+    toks = re.findall(r"[^\s\"'`]+", s.lower())
+    return {t.rstrip(";") for t in toks if t not in _NOISE}
+
+
+def _same(a: Any, b: Any) -> bool:
+    na, nb = _norm_val(a), _norm_val(b)
+    if na == nb:
+        return True
+    if isinstance(a, str) and isinstance(b, str) and (len(a) > 20 or len(b) > 20):
+        wa, wb = _words(a), _words(b)
+        return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= FREE_TEXT_PASS
+    return False
+
+
 def args_score(student: dict[str, Any], teacher: dict[str, Any]) -> float:
     keys = set(student) | set(teacher)
     if not keys:
         return 1.0
-    same = sum(1 for k in keys if k in student and k in teacher and _norm_val(student[k]) == _norm_val(teacher[k]))
+    same = sum(1 for k in keys if k in student and k in teacher and _same(student[k], teacher[k]))
     return same / len(keys)
 
 

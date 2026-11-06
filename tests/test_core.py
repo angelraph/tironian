@@ -136,6 +136,16 @@ def test_compact_context_groups_tools_and_drops_system():
     assert [x["from"] for x in convo] == ["system", "human", "gpt", "tool", "gpt"]
 
 
+def test_shell_commands_compared_by_words_not_characters():
+    """Found live: correct student commands failed for quoting and home-folder spelling."""
+    from tironian.core.evaluate import args_score
+    teacher = {"command": 'find "/c/Users/[REDACTED:user]/Videos" -iname "*.docx" -type f 2>/dev/null | wc -l'}
+    assert args_score({"command": "find \"$HOME/Videos\" -type f -iname '*.docx' | wc -l"}, teacher) == 1.0
+    # A different approach is still a different answer.
+    assert args_score({"command": 'ls -1 "$HOME/Videos"/*.docx | wc -l'}, teacher) == 0.0
+    assert args_score({"path": "a"}, {"path": "b"}) == 0.0
+
+
 def test_validate_args():
     schema = TOOLS[0]["function"]["parameters"]
     assert hf.validate_args({"command": "ls"}, schema) is None

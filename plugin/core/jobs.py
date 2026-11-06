@@ -93,8 +93,15 @@ class Estimate:
     gpu: str
 
 
+def epochs_for(n_examples: int) -> int:
+    """Passes over the data. A small family needs more of them: the first real run (64 examples,
+    2 passes, 16 steps) learned the right tool calls but not the teacher's short answers.
+    Aim for about 40 optimizer steps (batch 8), between 2 and 6 passes."""
+    return max(2, min(6, -(-320 // max(n_examples, 1))))
+
+
 def estimate(n_examples: int, s: Settings) -> Estimate:
-    secs = int(_OVERHEAD_S[s.base_model] + n_examples * 2 * _S_PER_EXAMPLE_EPOCH[s.base_model])
+    secs = int(_OVERHEAD_S[s.base_model] + n_examples * epochs_for(n_examples) * _S_PER_EXAMPLE_EPOCH[s.base_model])
     rate = MODAL_GPU_USD_PER_S.get(s.modal_gpu, MODAL_GPU_USD_PER_S["L4"])
     return Estimate(secs, round(secs * rate, 2) if s.train_backend == "modal" else 0.0, s.modal_gpu)
 
@@ -122,7 +129,7 @@ def start(store: Store, data_dir: Path, s: Settings, *, dataset_id: str, family_
     rate = MODAL_GPU_USD_PER_S.get(s.modal_gpu, MODAL_GPU_USD_PER_S["L4"])
     cap_s = int(max(600, min(3 * 3600, s.max_usd_per_run / rate)))   # the cost cap, enforced as a timeout
     params = {"job_id": job_id, "backend": backend, "base": BASE_MODELS[s.base_model], "name": name,
-              "epochs": 2, "seed": 3407, "gpu": s.modal_gpu, "timeout_s": cap_s}
+              "epochs": epochs_for(int(ds["n_train"])), "seed": 3407, "gpu": s.modal_gpu, "timeout_s": cap_s}
     (jdir / "job.json").write_text(json.dumps(params, indent=2), encoding="utf-8")
     store.upsert("jobs", {
         "id": job_id, "kind": "train", "backend": backend, "status": "queued", "remote_id": None,

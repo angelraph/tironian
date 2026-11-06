@@ -29,7 +29,8 @@ _REDACTED = re.compile(r"\[REDACTED:[a-z_]+\]")
 _STOP = frozenset("""
 a an the and or but if then so to of in on at for with by from as is are was were be been it its
 this that these those i me my we our you your he she they them please can could would will just
-some any all into about up out over do does did there here what which who how why when
+some any all into about up out over under do does did there here what which who how why when their
+his her
 """.split())
 
 
@@ -55,6 +56,18 @@ can could would should give make let quickly please also just
 """.split())
 
 
+# Words about how a request is phrased, not what it asks for. "Check with the terminal" and
+# "using the terminal" are the same request as "use the terminal". Dropped from features so
+# that phrasing alone doesn't split one task into several families.
+_PHRASING = frozenset("""
+check checking using use used have has extension extensions command quickly also just let
+""".split())
+
+# File types written without the dot ("how many docx files") are arguments too.
+_BARE_EXT = re.compile(r"\b(?:pdf|exe|zip|png|jpe?g|gif|txt|csv|json|xml|ya?ml|mp3|mp4|mov|docx?|xlsx?|pptx?|"
+                       r"py|js|ts|html?|css|md|log|iso|msi|dll|tmp|bak)\b(?=\s+files?\b)")
+
+
 def normalize(text: str) -> str:
     """Collapse the variable parts of a request so the *shape* of the task remains."""
     t = text or ""
@@ -67,6 +80,7 @@ def normalize(text: str) -> str:
     t = _EXT.sub(" <ext> ", t)
     t = _NAME.sub(lambda m: m.group(1) + " <name>", t)
     t = t.lower()
+    t = _BARE_EXT.sub(" <ext> ", t)
     t = _NUM.sub(" <n> ", t)
     for pat, word in _SYNONYMS:
         t = pat.sub(word, t)
@@ -86,11 +100,22 @@ def common_features(item_feats: Sequence[frozenset[str]], *, max_df: float = 0.5
     return frozenset(f for f, c in df.items() if c / n > max_df)
 
 
+def without_common(feats: frozenset[str], common: frozenset[str]) -> frozenset[str]:
+    """Drop common features, and word pairs built on a common word ("recent files" when nearly
+    every request says "files"), so the rare word decides the family on its own."""
+    if not common:
+        return feats
+    return frozenset(f for f in feats if f not in common
+                     and not (" " in f and any(w in common for w in f.split(" "))))
+
+
 def features(user_text: str, tools: Sequence[str] = (), skill: str | None = None) -> frozenset[str]:
     """Unigrams + bigrams of the normalized request, plus the first tools used and any skill."""
-    words = [w for w in _WORD.findall(normalize(user_text)) if w not in _STOP]
+    words = [w for w in _WORD.findall(normalize(user_text)) if w not in _STOP and w not in _PHRASING]
     feats: set[str] = set(words)
-    feats.update(f"{a} {b}" for a, b in zip(words, words[1:]))
+    # Word pairs carry order ("largest files"), but a pair with a placeholder in it ("<n> files")
+    # only says where the argument went, which changes with phrasing. Those are left out.
+    feats.update(f"{a} {b}" for a, b in zip(words, words[1:]) if "<" not in a and "<" not in b)
     for name in list(dict.fromkeys(tools))[:3]:
         feats.add(f"T:{name}")
     if skill:
@@ -140,14 +165,17 @@ class Family:
     def similarity(self, feats: frozenset[str]) -> float:
         return max((jaccard(feats, e) for e in self.exemplars), default=0.0)
 
-    def add(self, turn_id: str, feats: frozenset[str], tools: Sequence[str], max_exemplars: int) -> None:
+    def add(self, turn_id: str, feats: frozenset[str], tools: Sequence[str], max_exemplars: int,
+            name_feats: frozenset[str] | None = None) -> None:
         self.members.append(turn_id)
         # Keep exemplars diverse: only add one that is not near-identical to an existing one.
         if len(self.exemplars) < max_exemplars and all(jaccard(feats, e) < 0.9 for e in self.exemplars):
             self.exemplars.append(feats)
         for t in set(tools):
             self.tool_counts[t] = self.tool_counts.get(t, 0) + 1
-        for f in feats:
+        # Names come from the full wording ("recent files"), so they read well even though
+        # matching ignores the common word "files".
+        for f in (name_feats if name_feats is not None else feats):
             if not f.startswith(("T:", "S:")) and "<" not in f:
                 self.term_counts[f] = self.term_counts.get(f, 0) + 1
 
@@ -158,6 +186,16 @@ class Family:
         for term, _ in terms:
             if any(w in _LABEL_FILLER for w in term.split()):
                 continue
+            if any(term in p or p in term for p in picked):
+                continue
+            if " " not in term:
+                # "recent files" reads better than "recent" when people often say it that way.
+                pairs = [(c, p) for p, c in self.term_counts.items() if " " in p and term in p.split(" ")
+                         and not any(w in _LABEL_FILLER for w in p.split(" "))]
+                if pairs:
+                    c, p = max(pairs)
+                    if c >= 0.4 * self.term_counts[term]:
+                        term = p
             if any(term in p or p in term for p in picked):
                 continue
             picked.append(term)
@@ -191,7 +229,7 @@ def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: in
         common = common_features(all_feats)
     families: list[Family] = []
     for it, raw in zip(items, all_feats):
-        feats = frozenset(raw - common)
+        feats = without_common(raw, common)
         if not feats:
             continue
         best, best_sim = None, 0.0
@@ -203,7 +241,8 @@ def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: in
             fid = "f" + hashlib.sha1(it.turn_id.encode()).hexdigest()[:8]
             best = Family(id=fid)
             families.append(best)
-        best.add(it.turn_id, feats, list(it.tools), max_exemplars)
+        name_feats = frozenset(f for f in raw if f not in common or " " in f)
+        best.add(it.turn_id, feats, list(it.tools), max_exemplars, name_feats=name_feats)
 
     # Merge pass: families whose exemplars overlap strongly are the same task phrased differently.
     merged = True

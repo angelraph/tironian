@@ -63,6 +63,34 @@ def test_clustering_is_deterministic_and_groups_paraphrases():
     assert "t3" not in disk.members
 
 
+def test_phrasing_alone_does_not_split_a_task():
+    """Found in real use: the same three tasks came out as nine families, split by how they were asked."""
+    asks = {
+        "recent": ["What are the 5 most recently modified files in my Downloads folder? Use the terminal.",
+                   "Use the terminal to show the 3 newest files in Desktop.",
+                   "Which 10 files in Documents changed most recently? Check with the terminal."],
+        "largest": ["What are the 3 largest files in my Videos folder? Use the terminal to check.",
+                    "Which 5 files take up the most space in Music? Check with the terminal.",
+                    "Use the terminal to list the 10 largest files in Pictures, with their sizes.",
+                    "Find the 5 largest files under my Downloads directory using the terminal."],
+        "count": ["How many .pdf files are in my Desktop folder? Use the terminal.",
+                  "Use the terminal to tell me how many docx files I have in Documents.",
+                  "How many files with the .zip extension are in my Downloads directory? Check with the terminal."],
+    }
+    items, truth = [], {}
+    for rep in range(3):  # enough requests for "files", "terminal" to count as common words
+        for task, texts in asks.items():
+            for k, text in enumerate(texts):
+                tid = f"{task}{rep}{k}"
+                items.append(families.Item(tid, text, ["terminal"]))
+                truth[tid] = task
+    fams = families.cluster(items, common=families.common_features(
+        [families.features(i.user_text, i.tools) for i in items], min_items=10))
+    assert len(fams) == 3
+    for f in fams:
+        assert len({truth[m] for m in f.members}) == 1
+
+
 def test_grade_signals():
     good = grade.grade(grade.TurnFacts("list files", [grade.ToolOutcome("terminal")], "thanks!", True))
     assert good.label == "good"

@@ -134,32 +134,42 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
     action = jsx('span', { className: 'text-xs text-(--ui-text-quaternary)', children: `needs ${minTurns - f.n_good} more good` })
   }
 
+  // Inline styles on purpose: Desktop ships only the Tailwind classes the app itself uses,
+  // so arbitrary layout classes from a plugin silently do nothing.
+  const progress = Math.min(1, f.n_good / Math.max(1, minTurns))
   return jsxs('div', {
-    className: 'flex flex-col gap-1 border-b border-(--ui-stroke-secondary) py-2 last:border-b-0',
+    style: { display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0', borderBottom: '1px solid var(--ui-stroke-secondary)' },
     children: [
       jsxs('div', {
-        className: 'grid grid-cols-[minmax(0,1fr)_5rem_5rem_8rem_minmax(0,14rem)] items-center gap-3 text-sm',
+        style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 72px 72px 120px minmax(0,auto)', alignItems: 'center', gap: 12, fontSize: 13.5 },
         children: [
           jsxs('div', {
-            className: 'min-w-0',
+            style: { minWidth: 0 },
             children: [
-              jsx('div', { className: 'truncate', children: f.name }),
-              jsx('div', { className: 'truncate text-[0.6875rem] text-(--ui-text-quaternary)', children: `${f.id} · ${(f.tools || []).join(', ') || 'no tools'}` })
+              jsx('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }, children: f.name }),
+              jsx('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11, color: 'var(--ui-text-quaternary)' }, children: `${f.id} · ${(f.tools || []).join(', ') || 'no tools'}` })
             ]
           }),
-          jsx('div', { className: 'tabular-nums text-(--ui-text-secondary)', children: `${f.n_turns} req` }),
-          jsx('div', { className: 'tabular-nums text-(--ui-text-secondary)', children: `${f.n_good} good` }),
-          jsx('div', { className: 'text-xs', style: { color }, children: label }),
-          jsx('div', { className: 'flex justify-end', children: action })
+          jsx('div', { style: { color: 'var(--ui-text-secondary)', fontVariantNumeric: 'tabular-nums' }, children: `${f.n_turns} req` }),
+          jsx('div', { style: { color: 'var(--ui-text-secondary)', fontVariantNumeric: 'tabular-nums' }, children: `${f.n_good} good` }),
+          jsx('div', { style: { color, fontSize: 12 }, children: label }),
+          jsx('div', { style: { display: 'flex', justifyContent: 'flex-end' }, children: action })
         ]
       }),
+      f.status === 'candidate'
+        ? jsx('div', {
+            title: `${f.n_good} of ${minTurns} good examples`,
+            style: { height: 4, borderRadius: 3, background: 'var(--ui-stroke-secondary)', overflow: 'hidden' },
+            children: jsx('div', { style: { width: pct(progress), height: '100%', background: 'var(--ui-accent)', transition: 'width .4s' } })
+          })
+        : null,
       jsxs('div', {
-        className: 'flex gap-4 text-xs text-(--ui-text-tertiary)',
+        style: { display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--ui-text-tertiary)' },
         children: [
           jsx(TestResult, { f }),
           f.shadow_n ? jsx('span', { children: `shadow: agreed ${f.shadow_agree} of ${f.shadow_n}` }) : null,
           f.served ? jsx('span', { children: `answered ${f.served} requests` }) : null,
-          note ? jsx('span', { className: 'text-(--ui-text-secondary)', children: note }) : null
+          note ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: note }) : null
         ]
       })
     ]

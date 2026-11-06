@@ -21,7 +21,8 @@ _QUOTED = re.compile(r"\"[^\"]{1,200}\"|'[^']{1,200}'|`[^`]{1,200}`")
 _NUM = re.compile(r"\b\d+(?:[.,:]\d+)*\b")
 _WORD = re.compile(r"[a-z][a-z0-9_\-]*|<[a-z]+>")
 _EXT = re.compile(r"(?<![\w])\.(?:[a-z0-9]{1,5})\b", re.IGNORECASE)
-_NAME = re.compile(r"([a-z,;:]\s+)(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)")
+# Capitalised words mid-sentence, including CamelCase names like AppData or OneDrive.
+_NAME = re.compile(r"([a-z,;:]\s+)(?:[A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*)*)")
 _REDACTED = re.compile(r"\[REDACTED:[a-z_]+\]")
 
 # Words that carry no task signal. Kept short on purpose: verbs like "find", "list", "fix" stay.
@@ -45,6 +46,13 @@ _SYNONYMS: list[tuple[re.Pattern[str], str]] = [(re.compile(rf"\b(?:{a})\b"), b)
     (r"turn into|transform|convert(?:ing)?|change into", "convert"),
     (r"summari[sz]e|sum up|tl;?dr|give (?:me )?a summary of", "summarize"),
 ]]
+
+
+# Words that say how something was asked, not what was asked. Kept out of family names only.
+_LABEL_FILLER = frozenset("""
+use using used check checking show tell help want need get see look run terminal command commands
+can could would should give make let quickly please also just
+""".split())
 
 
 def normalize(text: str) -> str:
@@ -143,11 +151,13 @@ class Family:
             if not f.startswith(("T:", "S:")) and "<" not in f:
                 self.term_counts[f] = self.term_counts.get(f, 0) + 1
 
-    def label(self, k: int = 3) -> str:
-        """Name from the most frequent distinctive terms, bigrams preferred."""
+    def label(self, k: int = 2) -> str:
+        """Name from the most frequent distinctive terms, bigrams preferred, filler skipped."""
         terms = sorted(self.term_counts.items(), key=lambda kv: (-kv[1] - (0.5 if " " in kv[0] else 0), kv[0]))
         picked: list[str] = []
         for term, _ in terms:
+            if any(w in _LABEL_FILLER for w in term.split()):
+                continue
             if any(term in p or p in term for p in picked):
                 continue
             picked.append(term)

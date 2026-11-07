@@ -90,6 +90,19 @@ def test_phrasing_alone_does_not_split_a_task():
     for f in fams:
         assert len({truth[m] for m in f.members}) == 1
 
+    # When one task is most of the history, its own word ("count") is in most requests too.
+    # It still marks that task, so it must not be thrown away like "files" or "terminal".
+    for rep in range(3, 12):
+        for k, text in enumerate(asks["count"]):
+            tid = f"count{rep}{k}"
+            items.append(families.Item(tid, text, ["terminal"]))
+            truth[tid] = "count"
+    fams = families.cluster(items, common=families.common_features(
+        [families.features(i.user_text, i.tools) for i in items], min_items=10))
+    assert len(fams) == 3
+    for f in fams:
+        assert len({truth[m] for m in f.members}) == 1
+
 
 def test_grade_signals():
     good = grade.grade(grade.TurnFacts("list files", [grade.ToolOutcome("terminal")], "thanks!", True))

@@ -61,6 +61,7 @@ can could would should give make let quickly please also just
 # that phrasing alone doesn't split one task into several families.
 _PHRASING = frozenset("""
 check checking using use used have has extension extensions command quickly also just let
+show folder
 """.split())
 
 # File types written without the dot ("how many docx files") are arguments too.
@@ -87,9 +88,16 @@ def normalize(text: str) -> str:
     return " ".join(t.split())
 
 
-def common_features(item_feats: Sequence[frozenset[str]], *, max_df: float = 0.5, min_items: int = 20) -> frozenset[str]:
-    """Features present in more than ``max_df`` of all requests say nothing about *which* task
-    it is ("use the terminal", "my", the one tool everything uses). They are ignored."""
+def common_features(item_feats: Sequence[frozenset[str]], *, max_df: float = 0.5, min_items: int = 20,
+                    hard_df: float = 0.9) -> frozenset[str]:
+    """Features that say nothing about *which* task a request is ("use the terminal", "my",
+    the one tool everything uses). They are ignored when grouping.
+
+    A feature in nearly every request (over ``hard_df``) is always common. One in more than
+    ``max_df`` is common only if it is spread across most kinds of request. If one task makes
+    up most of someone's history, its own word ("count") is frequent too, but it marks that
+    task, so it stays.
+    """
     n = len(item_feats)
     if n < min_items:
         return frozenset()
@@ -97,7 +105,24 @@ def common_features(item_feats: Sequence[frozenset[str]], *, max_df: float = 0.5
     for fs in item_feats:
         for f in fs:
             df[f] = df.get(f, 0) + 1
-    return frozenset(f for f, c in df.items() if c / n > max_df)
+    hard = frozenset(f for f, c in df.items() if c / n > hard_df)
+    frequent = [f for f, c in df.items() if max_df < c / n <= hard_df]
+    if not frequent:
+        return hard
+    # Rough groups with only the near-universal words removed, then see where each
+    # frequent word lives.
+    groups = _group([str(i) for i in range(n)], list(item_feats), [()] * n, hard,
+                    threshold=0.35, max_exemplars=8, merge_at=None)
+    by_id = dict(zip((str(i) for i in range(n)), item_feats))
+    big = [g for g in groups if len(g.members) >= max(3, n * 0.05)]
+    if len(big) < 2:
+        return hard | frozenset(frequent)   # one kind of request: nothing to tell apart
+    spread = set()
+    for f in frequent:
+        typical = sum(1 for g in big if sum(f in by_id[m] for m in g.members) * 2 >= len(g.members))
+        if typical > len(big) / 2:
+            spread.add(f)
+    return hard | frozenset(spread)
 
 
 def without_common(feats: frozenset[str], common: frozenset[str]) -> frozenset[str]:
@@ -112,9 +137,10 @@ def without_common(feats: frozenset[str], common: frozenset[str]) -> frozenset[s
 def features(user_text: str, tools: Sequence[str] = (), skill: str | None = None) -> frozenset[str]:
     """Unigrams + bigrams of the normalized request, plus the first tools used and any skill."""
     words = [w for w in _WORD.findall(normalize(user_text)) if w not in _STOP and w not in _PHRASING]
-    feats: set[str] = set(words)
-    # Word pairs carry order ("largest files"), but a pair with a placeholder in it ("<n> files")
-    # only says where the argument went, which changes with phrasing. Those are left out.
+    # A placeholder on its own ("<n>", "<ext>") is an argument, not a task: "the 5 largest" and
+    # "the 5 newest" share the number, not the job. Word pairs carry order ("largest files"),
+    # but a pair with a placeholder in it only says where the argument went. Both are left out.
+    feats: set[str] = {w for w in words if not w.startswith("<")}
     feats.update(f"{a} {b}" for a, b in zip(words, words[1:]) if "<" not in a and "<" not in b)
     for name in list(dict.fromkeys(tools))[:3]:
         feats.add(f"T:{name}")
@@ -227,8 +253,15 @@ def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: in
     all_feats = [features(it.user_text, it.tools, it.skill) for it in items]
     if common is None:
         common = common_features(all_feats)
+    return _group([it.turn_id for it in items], all_feats, [list(it.tools) for it in items], common,
+                  threshold=threshold, max_exemplars=max_exemplars, merge_at=merge_at)
+
+
+def _group(ids: Sequence[str], all_feats: Sequence[frozenset[str]], tools: Sequence[Sequence[str]],
+           common: frozenset[str], *, threshold: float, max_exemplars: int,
+           merge_at: float | None) -> list[Family]:
     families: list[Family] = []
-    for it, raw in zip(items, all_feats):
+    for tid, raw, used in zip(ids, all_feats, tools):
         feats = without_common(raw, common)
         if not feats:
             continue
@@ -238,11 +271,11 @@ def cluster(items: Sequence[Item], *, threshold: float = 0.35, max_exemplars: in
             if s > best_sim:
                 best, best_sim = fam, s
         if best is None or best_sim < threshold:
-            fid = "f" + hashlib.sha1(it.turn_id.encode()).hexdigest()[:8]
+            fid = "f" + hashlib.sha1(tid.encode()).hexdigest()[:8]
             best = Family(id=fid)
             families.append(best)
         name_feats = frozenset(f for f in raw if f not in common or " " in f)
-        best.add(it.turn_id, feats, list(it.tools), max_exemplars, name_feats=name_feats)
+        best.add(tid, feats, list(used), max_exemplars, name_feats=name_feats)
 
     # Merge pass: families whose exemplars overlap strongly are the same task phrased differently.
     merged = True

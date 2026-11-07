@@ -191,21 +191,41 @@ def rebuild_families(store: Store, settings: Settings) -> list[dict[str, Any]]:
     for r in store.q("SELECT id, family_id FROM turns WHERE family_id IS NOT NULL"):
         old_members.setdefault(r["family_id"], set()).add(r["id"])
 
-    out = []
+    # Each new family keeps the id (and status/student) of the old family it mostly is.
+    # Families with a student go first and can also be recognised by what they ask for, so a
+    # trained family keeps its id even if an earlier rebuild lost its members. Otherwise the
+    # match is on shared members, measured against both sides so a one-request family can't
+    # hand its id to a big one.
+    def _content(fs: Any) -> frozenset[str]:
+        return fam.without_common(frozenset(x for x in fs if not x.startswith(("<", "T:", "S:"))
+                                            and x not in fam._PHRASING), common)
+
+    pairs: list[tuple[float, int, str]] = []
+    for i, f in enumerate(clusters):
+        members = set(f.members)
+        new_ex = [_content(e) for e in f.exemplars]
+        for oid, r in old.items():
+            om = old_members.get(oid, set())
+            score = len(members & om) / len(members | om) if om else 0.0
+            if r["student_id"]:
+                old_ex = [_content(e) for e in json.loads(r["exemplars_json"] or "[]")]
+                sim = max((fam.jaccard(a, b) for a in new_ex for b in old_ex if a and b), default=0.0)
+                if sim >= 0.5:
+                    score = 1.0 + sim
+            if score >= 0.3:
+                pairs.append((score, i, oid))
+    fid_for: dict[int, str] = {}
     claimed: set[str] = set()
+    for score, i, oid in sorted(pairs, key=lambda p: (-p[0], p[1], p[2])):
+        if i not in fid_for and oid not in claimed:
+            fid_for[i] = oid
+            claimed.add(oid)
+
+    out = []
     with store.tx() as c:
         c.execute("UPDATE turns SET family_id=NULL")
-        for f in clusters:
-            members = set(f.members)
-            # Keep the id (and status/student) of the old family this one mostly is.
-            best_old, best_overlap = None, 0.0
-            for oid, om in old_members.items():
-                if oid in claimed or not om:
-                    continue
-                overlap = len(members & om) / len(om)
-                if overlap > best_overlap:
-                    best_old, best_overlap = oid, overlap
-            fid = best_old if best_old and best_overlap >= 0.5 else f.id
+        for i, f in enumerate(clusters):
+            fid = fid_for.get(i, f.id)
             claimed.add(fid)
             prev = old.get(fid)
             n_good = sum(1 for m in f.members if labels.get(m) == "good")
@@ -223,8 +243,11 @@ def rebuild_families(store: Store, settings: Settings) -> list[dict[str, Any]]:
         # Families that vanished keep their row only if a student depends on them.
         live_ids = {r["id"] for r in out}
         for oid, r in old.items():
-            if oid not in live_ids and not r["student_id"]:
-                c.execute("DELETE FROM families WHERE id=?", (oid,))
+            if oid not in live_ids:
+                if r["student_id"]:
+                    c.execute("UPDATE families SET n_turns=0, n_good=0, updated_at=? WHERE id=?", (time.time(), oid))
+                else:
+                    c.execute("DELETE FROM families WHERE id=?", (oid,))
     return out
 
 

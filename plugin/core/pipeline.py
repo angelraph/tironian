@@ -383,13 +383,24 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
     rng = random.Random(seed)
     rng.shuffle(sessions)
     n_hold = max(1, round(len(sessions) * heldout_share)) if len(sessions) > 1 else 0
-    # The gate needs min_eval_n held-out steps; with fewer, even a perfect student can't pass.
-    # Hold out more sessions until it has them, but never more than 40% of the family.
-    steps = {}
-    for sid, _, _ in examples:
-        steps[sid] = steps.get(sid, 0) + 1
+    # The gate needs min_eval_n held-out steps of each kind it may serve (first steps and steps
+    # after a tool result are judged apart); with fewer, even a perfect student can't pass.
+    # Hold out more sessions until every kind has them, but never more than 40% of the family.
+    steps: dict[str, dict[str, int]] = {}
+    for sid, _, ex in examples:
+        msgs = ex["compact"].messages
+        last = msgs[-1] if msgs else {}
+        tool_result = last.get("role") == "tool" or str(last.get("content", "")).startswith("<tool_response>")
+        kind = step_kind("tool" if tool_result else "user")
+        steps.setdefault(sid, {}).setdefault(kind, 0)
+        steps[sid][kind] += 1
+    kinds = {k for per in steps.values() for k in per}
+
+    def short(n: int) -> bool:
+        return any(sum(steps[s].get(k, 0) for s in sessions[:n]) < settings.min_eval_n for k in kinds)
+
     cap = int(len(sessions) * 0.4)
-    while n_hold < cap and sum(steps[s] for s in sessions[:n_hold]) < settings.min_eval_n:
+    while n_hold < cap and short(n_hold):
         n_hold += 1
     held_sessions = set(sessions[:n_hold])
 

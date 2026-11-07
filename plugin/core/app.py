@@ -238,6 +238,7 @@ class App:
         ds_id = job["dataset_id"] if job else self.store.scalar(
             "SELECT id FROM datasets WHERE family_ids LIKE ? ORDER BY created_at DESC LIMIT 1",
             (f'%"{st["family_id"]}"%',))
+        from . import serve as serve_mod
         from .student import model_matches
 
         def listed(c: StudentClient) -> bool:
@@ -251,8 +252,15 @@ class App:
         client = eval_client()
         if not listed(client):
             ok, msg = self.serve_student(student_id)
-            client = eval_client()
-            if not listed(client):
+            # A model just created can take a moment to show up in the server's list,
+            # especially while another load of it is finishing.
+            for _ in range(10):
+                client = eval_client()
+                if listed(client):
+                    break
+                time.sleep(2)
+                serve_mod.forget()
+            else:
                 raise RuntimeError(
                     f"the local model server doesn't list '{st['model_id']}' ({msg}). Install Ollama, or load "
                     f"{st['gguf_path']} into any OpenAI-compatible server and set student_endpoint to it")

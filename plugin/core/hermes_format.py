@@ -203,6 +203,10 @@ class Parsed:
     error: str | None = None
 
 
+# A backslash not starting a legal JSON escape (and not itself escaped).
+_BAD_ESCAPE = re.compile(r'(?<!\\)\\(?![\\"/bfnrtu])')
+
+
 def parse_output(text: str) -> Parsed:
     if text is None:
         return Parsed(False, error="empty")
@@ -216,7 +220,13 @@ def parse_output(text: str) -> Parsed:
         try:
             obj = json.loads(blob)
         except json.JSONDecodeError:
-            return Parsed(False, error="tool_call_json")
+            # Found live: small models write shell escapes like `-iname \*.docx` inside a JSON
+            # string, which isn't a legal JSON escape. Keeping the backslash literally gives the
+            # exact command the model wrote; anything else broken still fails.
+            try:
+                obj = json.loads(_BAD_ESCAPE.sub(r"\\\\", blob))
+            except json.JSONDecodeError:
+                return Parsed(False, error="tool_call_json")
         if not isinstance(obj, dict) or not isinstance(obj.get("name"), str):
             return Parsed(False, error="tool_call_shape")
         args = obj.get("arguments", {})

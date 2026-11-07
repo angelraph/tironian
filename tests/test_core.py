@@ -112,6 +112,15 @@ def test_format_roundtrip():
     assert p.ok and p.content == "checking" and p.tool_calls == [{"name": "terminal", "arguments": {"command": "du -sh ~"}}]
 
 
+def test_shell_escape_inside_tool_call_json_is_kept_literally():
+    """Found live: `-iname \\*.docx` written raw inside the JSON string."""
+    raw = '<tool_call>\n{"name": "terminal", "arguments": {"command": "find ~/Videos -iname \\*.docx | wc -l"}}\n</tool_call>'
+    p = hf.parse_output(raw)
+    assert p.ok and p.tool_calls[0]["arguments"]["command"] == "find ~/Videos -iname \\*.docx | wc -l"
+    ok = '<tool_call>\n{"name": "terminal", "arguments": {"command": "echo \\"a\\\\nb\\""}}\n</tool_call>'
+    assert hf.parse_output(ok).tool_calls[0]["arguments"]["command"] == 'echo "a\\nb"'
+
+
 @pytest.mark.parametrize("bad,err", [
     ("<think>\nstill thinking", "unterminated_think"),
     ("<tool_call>{not json}</tool_call>", "tool_call_json"),

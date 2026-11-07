@@ -28,8 +28,13 @@ runtime. Tironian connects them:
 4. For a family with enough good examples, it fine-tunes a small model (Qwen3 1.7B, LoRA,
    exported as a quantized GGUF). Training runs on a GPU in your own Modal account, about
    $0.30 a run with a hard cap, or on your own NVIDIA card.
-5. It tests that model on steps from sessions it never saw during training. The model is only
-   promoted if the lower end of the 95% confidence interval on its pass rate is at least 85%.
+5. It tests that model on steps from sessions it never saw during training. The first step of
+   a task (answering the request) and the steps after a tool result are scored separately, and
+   the model is only promoted for a kind of step if the lower end of the 95% confidence
+   interval on its pass rate there is at least 85%. So a model that writes the right command
+   but can't yet summarise the result serves just the command, and your model writes the
+   answer. When its command differs from your model's, an optional blind judge decides whether
+   both do the job.
 6. Once promoted, matching requests go to the small model. Its answer has to parse, call only
    tools the request actually offers, and pass those tools' argument schemas. If any of that
    fails, your usual model answers instead and you don't see the difference.

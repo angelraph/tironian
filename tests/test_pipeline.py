@@ -1,4 +1,4 @@
-"""History → report → dataset → (dry-run) training → evaluation → gate → shadow, end to end."""
+"""History â†’ report â†’ dataset â†’ (dry-run) training â†’ evaluation â†’ gate â†’ shadow, end to end."""
 
 import json
 import sqlite3
@@ -116,6 +116,27 @@ def test_dead_driver_fails_the_job_and_frees_the_trainer(app_factory, tmp_path):
     row = jobs.reconcile(app.store, app.data_dir, "job-dead")
     assert row["status"] == "failed" and "GGUF export produced no file" in row["error"]
     assert jobs.active_job(app.store) is None
+
+
+def test_trained_family_keeps_its_id(app_factory):
+    app = app_factory()
+    make_state_db(app.state_db)
+    pipeline.import_history(app.store, app.state_db, app.redactor)
+    disk = max(pipeline.rebuild_families(app.store, app.settings()), key=lambda f: f["n_turns"])
+
+    def x(sql, args=()):
+        with app.store.tx() as c:
+            c.execute(sql, args)
+
+    x("UPDATE families SET student_id='st1' WHERE id=?", (disk["id"],))
+    # A bad rebuild lost the members, and one of them now sits alone in a tiny family.
+    one = app.store.one("SELECT id FROM turns WHERE family_id=? LIMIT 1", (disk["id"],))["id"]
+    x("UPDATE turns SET family_id=NULL")
+    x("INSERT INTO families(id, name, n_turns, n_good, status, updated_at) VALUES('ftiny','x',1,0,'candidate',0)")
+    x("UPDATE turns SET family_id='ftiny' WHERE id=?", (one,))
+    again = max(pipeline.rebuild_families(app.store, app.settings()), key=lambda f: f["n_turns"])
+    assert again["id"] == disk["id"] and again["student_id"] == "st1"
+    assert app.store.one("SELECT id FROM families WHERE id='ftiny'") is None
 
 
 def test_bad_student_fails_gate(app_factory, llama, tmp_path):

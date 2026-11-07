@@ -145,6 +145,39 @@ def test_compact_context_groups_tools_and_drops_system():
     assert [x["from"] for x in convo] == ["system", "human", "gpt", "tool", "gpt"]
 
 
+def test_judge_decides_when_commands_differ():
+    from tironian.core.evaluate import check_decision
+    tools = [{"type": "function", "function": {"name": "terminal", "parameters": {
+        "type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}}}]
+    teacher = [{"function": {"name": "terminal", "arguments": '{"command": "find ~/Pictures -iname \'*.png\' | wc -l"}'}}]
+    student = hf.render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "ls ~/Pictures/*.png | wc -l"}'}}])
+    seen = []
+
+    def judge(req, a, b):
+        seen.append((a, b))
+        return "tie"
+    c = check_decision(student, "", teacher, tools, user_request="how many png", judge=judge)
+    assert c.passed and c.text == "judge-tie" and "ls ~/Pictures" in seen[0][0]
+    c = check_decision(student, "", teacher, tools, user_request="x", judge=lambda r, a, b: "b")  # teacher in slot b
+    assert not c.passed and c.reason == "judge_preferred_teacher"
+    assert not check_decision(student, "", teacher, tools, judge=None).passed
+
+
+def test_gate_per_step_kind():
+    from tironian.core.evaluate import Check, gated_scorecard
+    good, bad = Check(True, True), Check(False, False, reason="invalid:x")
+    checks = [good] * 30 + [bad] * 20
+    kinds = ["first"] * 30 + ["follow"] * 20
+    sc = gated_scorecard(checks, [100] * 50, kinds, min_n=30)
+    assert sc.gate_passed and sc.serve_steps == ["first"] and not sc.steps["follow"]["gate_passed"]
+    # Too few examples of the kind that is good: nothing passes.
+    sc = gated_scorecard([good] * 20 + [bad] * 20, [100] * 40, ["first"] * 20 + ["follow"] * 20, min_n=30)
+    assert not sc.gate_passed and sc.serve_steps == []
+    # Everything passes together: a small but perfect kind may ride along, a weak one may not.
+    sc = gated_scorecard([good] * 40 + [good] * 9 + [bad], [1] * 50, ["first"] * 40 + ["follow"] * 10, min_n=30)
+    assert sc.gate_passed and sc.serve_steps == ["first"]
+
+
 def test_shell_commands_compared_by_words_not_characters():
     """Found live: correct student commands failed for quoting and home-folder spelling."""
     from tironian.core.evaluate import args_score

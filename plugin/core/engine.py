@@ -28,6 +28,7 @@ from typing import Any, Callable
 
 from . import families as fam
 from .config import Settings
+from .evaluate import step_kind
 from .grade import ToolOutcome, TurnFacts, grade
 from .hermes_format import compact_messages, parse_output, select_tools, tool_name, tool_schema_map, validate_args
 from .redact import TRAINING_HIT_LIMIT, Redactor, sensitive_count
@@ -76,6 +77,7 @@ class PromotedFamily:
     student_model: str
     toolset: list[str]
     avg_cost_usd: float
+    steps: frozenset[str] = frozenset({"first", "follow"})   # step kinds that passed the gate
 
 
 @dataclass
@@ -318,8 +320,13 @@ class Engine:
             avg = self.store.scalar(
                 "SELECT AVG(d.cost_usd) FROM decisions d JOIN turns t ON t.id=d.turn_id "
                 "WHERE t.family_id=? AND d.served_by='teacher' AND d.cost_usd IS NOT NULL", (r["id"],), 0.0)
+            raw_steps = self.store.meta_get(f"serve_steps:{r['id']}")
+            try:
+                steps = frozenset(json.loads(raw_steps)) if raw_steps else frozenset({"first", "follow"})
+            except (TypeError, ValueError):
+                steps = frozenset()
             out.append(PromotedFamily(f, r["status"], r["model_id"], json.loads(r["toolset_json"] or "[]"),
-                                      float(avg or 0.0)))
+                                      float(avg or 0.0), steps))
         self._promoted, self._promoted_at = out, now
         try:
             self._common = frozenset(json.loads(self.store.meta_get("common_features") or "[]"))
@@ -396,6 +403,10 @@ class Engine:
             return None
         chosen = next((p for p in self.promoted() if p.family.id == st.route_family), None)
         if chosen is None:
+            return None
+        # Only the kinds of step this student passed: e.g. it runs the first command and your
+        # model writes the answer from the result. Not sticky; a later step may qualify again.
+        if step_kind(messages[-1].get("role") if messages else None) not in chosen.steps:
             return None
         family_tools = select_tools(tools, chosen.toolset)
         compact = compact_messages(messages, family_tools, max_tokens=s.max_context_tokens)

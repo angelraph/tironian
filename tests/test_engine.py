@@ -128,6 +128,25 @@ def test_failed_tool_hands_turn_back_to_teacher(app_factory, llama):
     assert t.calls == 1 and len(llama.calls) == 1 and resp.choices[0].message.content == "done"
 
 
+def test_student_serves_only_the_step_kinds_it_passed(app_factory, llama):
+    """First command from the student, the answer after the tool result from your model."""
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    app.store.meta_set("serve_steps:fdisk", json.dumps(["first"]))
+    app.engine.invalidate()
+    llama.replies = [render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "du -sh ~"}'}}])]
+    t = Teacher()
+    run_turn(app, "what's using disk space in ~/Downloads", t)
+    assert t.calls == 0 and len(llama.calls) == 1
+    follow = request()
+    follow["messages"] += [{"role": "assistant", "content": None, "tool_calls": [
+        {"id": "c1", "type": "function", "function": {"name": "terminal", "arguments": '{"command": "du -sh ~"}'}}]},
+        {"role": "tool", "tool_call_id": "c1", "content": "4.0G ~"}]
+    resp = app.engine.llm_execution(request=follow, next_call=t, session_id="s1", turn_id="t1",
+                                    api_request_id="t1:1", api_mode="chat_completions")
+    assert t.calls == 1 and len(llama.calls) == 1 and resp.choices[0].message.content == "done"
+
+
 def test_unrelated_request_goes_to_teacher(app_factory, llama):
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)
     promote(app, llama)

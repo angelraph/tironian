@@ -4,7 +4,7 @@ Each session is a genuine `hermes chat -q` run with the user's own model: Hermes
 the (read-only) terminal commands and Tironian captures it exactly as it captures normal use.
 Nothing is fabricated: the teacher's real answers are what the student learns.
 
-usage: python scripts/seed_sessions.py --n 150 [--hermes PATH] [--pause 5]
+usage: python scripts/seed_sessions.py --n 150 [--only count] [--hermes PATH] [--pause 5]
 """
 
 from __future__ import annotations
@@ -40,11 +40,12 @@ RECENT = [
 ]
 
 
-def prompts(n: int, seed: int) -> list[str]:
+def prompts(n: int, seed: int, only: str | None = None) -> list[str]:
     rng = random.Random(seed)
+    pick = {"largest": (DISK,), "count": (COUNT,), "recent": (RECENT,)}.get(only or "", (DISK, COUNT, RECENT))
     out = []
     for i in range(n):
-        fam = (DISK, COUNT, RECENT)[i % 3]
+        fam = pick[i % len(pick)]
         out.append(rng.choice(fam).format(k=rng.choice([3, 5, 10]), f=rng.choice(FOLDERS), e=rng.choice(EXTS)))
     return out
 
@@ -57,10 +58,11 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=420)
     ap.add_argument("--hermes", default=str(Path(os.environ.get("LOCALAPPDATA", "")) / "hermes" / "bin" / "hermes.exe"))
     ap.add_argument("--log", type=Path, default=Path("seed_sessions.jsonl"))
+    ap.add_argument("--only", choices=["largest", "count", "recent"], help="seed one task family")
     a = ap.parse_args()
     done = {json.loads(x)["prompt"] for x in a.log.read_text(encoding="utf-8").splitlines()} if a.log.exists() else set()
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    for i, p in enumerate(prompts(a.n, a.seed)):
+    for i, p in enumerate(prompts(a.n, a.seed, a.only)):
         if p in done:
             continue
         t = time.time()

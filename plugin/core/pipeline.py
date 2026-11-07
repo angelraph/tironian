@@ -18,7 +18,7 @@ from typing import Any, Callable, Iterable, Sequence
 
 from . import families as fam
 from .config import Settings
-from .evaluate import Check, Judge, Scorecard, check_decision, scorecard
+from .evaluate import Check, Judge, Scorecard, check_decision, gated_scorecard, scorecard, step_kind  # noqa: F401
 from .grade import ToolOutcome, TurnFacts, grade
 from .hermes_format import compact_messages, render_target, to_sharegpt, tool_name
 from .redact import TRAINING_HIT_LIMIT, Redactor, sensitive_count
@@ -421,10 +421,12 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     eval_id = "ev-" + hashlib.sha1(f"{student_id}:{dataset_id}:{time.time()}".encode()).hexdigest()[:10]
     checks: list[Check] = []
     lats: list[int] = []
+    kinds: list[str] = []
     item_rows = []
     for i, line in enumerate(lines):
         ex = json.loads(line)
         convo = ex["conversations"]
+        kinds.append(step_kind("tool" if len(convo) >= 2 and convo[-2]["from"] == "tool" else "user"))
         msgs = [{"role": {"system": "system", "human": "user", "tool": "user", "gpt": "assistant"}[c["from"]],
                  "content": c["value"]} for c in convo[:-1]]
         teacher = ex.get("teacher") or {}
@@ -442,8 +444,9 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
         if progress:
             progress(i + 1, len(lines))
 
-    sc = scorecard(checks, lats, threshold=settings.promotion_threshold, min_n=settings.min_eval_n,
-                   validity_floor=settings.validity_floor)
+    sc = gated_scorecard(checks, lats, kinds, threshold=settings.promotion_threshold, min_n=settings.min_eval_n,
+                         validity_floor=settings.validity_floor)
+    store.meta_set(f"serve_steps:{family_id}", json.dumps(sc.serve_steps if sc.gate_passed else []))
     with store.tx() as c:
         c.execute(
             "INSERT INTO evals(id, student_id, dataset_id, family_id, n, passed, wilson_lo, wilson_hi, validity, "

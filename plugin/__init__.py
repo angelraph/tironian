@@ -75,8 +75,14 @@ def register(ctx: Any) -> None:
 
     ctx.register_command("tironian", handler=slash, description="Your personal model: status, report, train, promote",
                          args_hint="[status|report|families|good|bad|off|on|train|shadow|promote|demote|why]")
+    def cli(args: Any) -> Any:
+        # Build the app through ctx first, so `hermes tironian eval` gets Hermes's model handle
+        # (for the judge) and plugin settings, exactly like hooks and /tironian do.
+        app()
+        return cli_args.run(args)
+
     ctx.register_cli_command(name="tironian", help="Distill your Hermes work into a personal local model",
-                             setup_fn=cli_args.setup, handler_fn=cli_args.run)
+                             setup_fn=cli_args.setup, handler_fn=cli)
 
     register_aux = getattr(ctx, "register_auxiliary_task", None)
     if callable(register_aux):

@@ -169,6 +169,18 @@ def check_decision(student_text: str, teacher_content: str, teacher_calls: Seque
             if bad:
                 return Check(False, True, action_match=True, tool_match=True, reason=f"schema:{bad}")
         score = min(args_score(s["arguments"], t["arguments"]) for s, t in zip(p.tool_calls, t_calls))
+        if score < ARGS_PASS and judge is not None:
+            # A different command can be just as right (`ls *.png | wc -l` against `find -iname`).
+            # The same blind pairwise judge decides; position alternates with ``flip``.
+            def show(calls: Sequence[dict[str, Any]]) -> str:
+                return "\n".join(f"Runs {c['name']} with {json.dumps(c['arguments'], ensure_ascii=False)}" for c in calls)
+            a, b = (show(t_calls), show(p.tool_calls)) if flip else (show(p.tool_calls), show(t_calls))
+            raw = judge(user_request, a, b)
+            if raw in ("a", "b", "tie"):
+                student_slot = "b" if flip else "a"
+                ok = raw == "tie" or raw == student_slot
+                return Check(ok, True, True, True, score, text=f"judge-{'tie' if raw == 'tie' else ('win' if ok else 'loss')}",
+                             reason="" if ok else "judge_preferred_teacher")
         return Check(score >= ARGS_PASS, True, True, True, score,
                      reason="" if score >= ARGS_PASS else f"args={score:.2f}")
 
@@ -203,6 +215,10 @@ class Scorecard:
     gate_passed: bool
     gate_reason: str
     failures: dict[str, int] = field(default_factory=dict)
+    #: Per step kind ("first": answering the request; "follow": the step after a tool result),
+    #: each with its own n, pass count, bounds and gate. ``serve_steps`` lists the kinds that passed.
+    steps: dict[str, dict[str, Any]] = field(default_factory=dict)
+    serve_steps: list[str] = field(default_factory=list)
 
     @property
     def pass_rate(self) -> float:
@@ -237,3 +253,47 @@ def scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], *, threshold
         wilson_lo=lo, wilson_hi=hi, validity=validity,
         p50_ms=int(statistics.median(latencies_ms)) if latencies_ms else 0,
         gate_passed=ok, gate_reason=why, failures=failures)
+
+
+STEP_KINDS = ("first", "follow")
+
+
+def step_kind(last_role: str | None) -> str:
+    """A step answers the request ("first") or continues after a tool result ("follow")."""
+    return "follow" if last_role in ("tool", "function") else "first"
+
+
+def gated_scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], kinds: Sequence[str], *,
+                    threshold: float = 0.85, min_n: int = 30, validity_floor: float = 0.98) -> Scorecard:
+    """The overall scorecard, plus the same gate applied to each step kind on its own.
+
+    A student that has mastered the first step of a task but not what comes after a tool result
+    can still serve that first step; your model takes the rest of the turn. Each kind needs its
+    own ``min_n`` held-out examples and its own Wilson lower bound, so passing is never easier.
+    """
+    sc = scorecard(checks, latencies_ms, threshold=threshold, min_n=min_n, validity_floor=validity_floor)
+    for kind in STEP_KINDS:
+        idx = [i for i, k in enumerate(kinds) if k == kind]
+        if not idx:
+            continue
+        sub = scorecard([checks[i] for i in idx], [latencies_ms[i] for i in idx if i < len(latencies_ms)],
+                        threshold=threshold, min_n=min_n, validity_floor=validity_floor)
+        sc.steps[kind] = {"n": sub.n, "passed": sub.passed, "wilson_lo": sub.wilson_lo, "wilson_hi": sub.wilson_hi,
+                          "validity": sub.validity, "gate_passed": sub.gate_passed, "gate_reason": sub.gate_reason}
+        if sub.gate_passed:
+            sc.serve_steps.append(kind)
+    if sc.serve_steps and not sc.gate_passed:
+        sc.gate_passed = True
+        sc.gate_reason = "passed for " + " and ".join(
+            f"{k} steps ({sc.steps[k]['gate_reason']})" for k in sc.serve_steps) + "; your model handles the rest"
+    elif sc.gate_passed:
+        # The whole set passed. A kind too small to pass alone rides along only if its own
+        # pass rate and validity are as good as the gate asks for, so a weak kind can't hide.
+        for kind, d in sc.steps.items():
+            if kind not in sc.serve_steps and d["n"] and d["passed"] / d["n"] >= threshold \
+                    and d["validity"] >= validity_floor:
+                sc.serve_steps.append(kind)
+        sc.serve_steps = [k for k in STEP_KINDS if k in sc.serve_steps]
+        if not sc.serve_steps:
+            sc.gate_passed, sc.gate_reason = False, "no step kind is good enough on its own"
+    return sc

@@ -138,8 +138,9 @@ class App:
             try:
                 with reentrant():
                     res = self.llm.complete_structured(
-                        instructions=("Two assistant replies answer the same user request. Judge only "
-                                      "correctness and usefulness for that request. Answer 'tie' when both "
+                        instructions=("Two assistant replies answer the same user request. A reply may be a "
+                                      "final answer or a tool call the assistant is about to make. Judge only "
+                                      "whether each would correctly serve that request. Answer 'tie' when both "
                                       "are equally acceptable."),
                         input=[{"type": "text", "text": f"REQUEST:\n{request[:3000]}\n\nREPLY A:\n{a[:3000]}\n\nREPLY B:\n{b[:3000]}"}],
                         json_schema=schema, task="tironian_judge", purpose="tironian held-out evaluation",
@@ -147,10 +148,13 @@ class App:
                 parsed = getattr(res, "parsed", None) or {}
                 v = parsed.get("better") if isinstance(parsed, dict) else None
                 return v if v in ("a", "b", "tie") else None
-            except Exception:
+            except Exception as exc:
                 log.debug("judge call failed", exc_info=True)
+                self.judge_error = f"{type(exc).__name__}: {exc}"[:300]
                 return None
         return ask
+
+    judge_error: str | None = None
 
     # First run
     def first_run(self) -> dict[str, Any] | None:
@@ -256,12 +260,18 @@ class App:
         def progress(i: int, n: int) -> None:
             if i == n or i % 5 == 0:
                 self.broadcast("eval.progress", {"student": student_id, "done": i, "total": n})
+        judge = self.judge()
+        self.judge_error = None
         sc = pipeline.evaluate_student(self.store, self.settings(), student_id=student_id, dataset_id=ds_id,
-                                       client=client, judge=self.judge(), limit=limit, progress=progress)
+                                       client=client, judge=judge, limit=limit, progress=progress)
+        s = self.settings()
+        judge_state = ("off" if not s.judge_enabled else "unavailable (no model access)" if judge is None
+                       else f"failed: {self.judge_error}" if self.judge_error else "on")
         self.engine.invalidate()
         return {"n": sc.n, "passed": sc.passed, "wilson_lo": sc.wilson_lo, "wilson_hi": sc.wilson_hi,
                 "validity": sc.validity, "gate_passed": sc.gate_passed, "gate_reason": sc.gate_reason,
-                "p50_ms": sc.p50_ms, "failures": sc.failures}
+                "p50_ms": sc.p50_ms, "failures": sc.failures, "steps": sc.steps, "serve_steps": sc.serve_steps,
+                "judge": judge_state}
 
 
 def get_app(**kwargs: Any) -> App:

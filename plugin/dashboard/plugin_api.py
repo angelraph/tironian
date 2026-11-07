@@ -154,8 +154,9 @@ def train_cancel(body: dict[str, Any]) -> dict[str, Any]:
 @router.get("/students")
 def students() -> dict[str, Any]:
     app = _app()
-    loaded = set(app.student_client().available_models())
-    rows = [dict(r) | {"loaded": r["model_id"] in loaded}
+    model_matches = importlib.import_module(f"{_pkg().__name__}.core.student").model_matches
+    loaded = app.student_client().available_models()
+    rows = [dict(r) | {"loaded": any(model_matches(m, r["model_id"]) for m in loaded)}
             for r in app.store.q("SELECT * FROM students ORDER BY created_at DESC LIMIT 20")]
     return {"students": rows}
 

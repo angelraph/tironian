@@ -12,11 +12,15 @@ available (it ships with Hermes) and a faithful attribute-access stand-in otherw
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Sequence
+
+
+_THINK = re.compile(r"^\s*<think>[\s\S]*?</think>\s*")  # same rule as trainer/train_core.strip_think
 
 
 @dataclass
@@ -42,8 +46,12 @@ class StudentClient:
         import urllib.error
         import urllib.request
 
+        # Earlier assistant turns lose their (empty) think block, exactly as train_core renders
+        # training prompts. Leaving it in made the prompt differ from anything the student saw.
+        msgs = [{**m, "content": _THINK.sub("", m.get("content") or "", count=1)} if m.get("role") == "assistant"
+                else m for m in messages]
         body = json.dumps({
-            "model": model_id, "messages": list(messages), "temperature": temperature,
+            "model": model_id, "messages": msgs, "temperature": temperature,
             "max_tokens": max_tokens, "stream": False,
             # llama.cpp's Qwen3 template: answer directly, no hidden reasoning pass.
             "chat_template_kwargs": {"enable_thinking": False},

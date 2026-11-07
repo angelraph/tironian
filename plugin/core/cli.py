@@ -110,9 +110,10 @@ def run(args: Any) -> int:
         _p("Cancellation requested.")
     elif cmd == "students":
         rows = app.store.q("SELECT * FROM students ORDER BY created_at DESC")
-        available = set(app.student_client().available_models())
+        from .student import model_matches
+        available = app.student_client().available_models()
         for r in rows:
-            loaded = "loaded" if r["model_id"] in available else "not loaded"
+            loaded = "loaded" if any(model_matches(m, r["model_id"]) for m in available) else "not loaded"
             _p(f"{r['id']}  family {r['family_id']}  {r['size_bytes'] / 1e9:.2f} GB  {loaded}\n  {r['gguf_path']}")
         if not rows:
             _p("No students yet: `hermes tironian train <family>`.")

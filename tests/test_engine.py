@@ -68,6 +68,15 @@ def test_live_student_serves_valid_tool_call(app_factory, llama):
     assert app.store.scalar("SELECT outcome FROM routes") == "served"
 
 
+def test_student_prompt_matches_training_render(llama):
+    """Found live: earlier assistant turns reached the student with a think block training had removed."""
+    from tironian.core.student import StudentClient
+    StudentClient(llama.url).complete("m", [{"role": "user", "content": "hi"},
+                                             {"role": "assistant", "content": "<think>\n</think>\n<tool_call>x</tool_call>"}])
+    sent = llama.calls[-1]["messages"]
+    assert sent[1]["content"] == "<tool_call>x</tool_call>" and sent[0]["content"] == "hi"
+
+
 def test_ollama_reply_in_reasoning_field_is_served(app_factory, llama):
     """Found live: Ollama put the student's whole answer under "reasoning" and left content empty."""
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)

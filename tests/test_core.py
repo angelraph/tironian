@@ -201,6 +201,17 @@ def test_shell_commands_compared_by_words_not_characters():
     assert args_score({"path": "a"}, {"path": "b"}) == 0.0
 
 
+def test_one_of_the_teachers_parallel_commands_counts():
+    """Found live: the teacher ran two finds at once; the student ran exactly the second."""
+    call = lambda cmd: {"function": {"name": "terminal", "arguments": json.dumps({"command": cmd})}}
+    teacher = [call("find ~/Temp -maxdepth 1 -type f -iname '*.py' | wc -l"),
+               call("find ~/Temp -type f -iname '*.py' | wc -l")]
+    student = hf.render_target("", [call("find ~/Temp -type f -iname '*.py' | wc -l")])
+    assert evaluate.check_decision(student, "", teacher, TOOLS).passed
+    other = hf.render_target("", [call("du -sh ~/Temp")])
+    assert evaluate.check_decision(other, "", teacher, TOOLS).reason == "tool_mismatch"
+
+
 def test_validate_args():
     schema = TOOLS[0]["function"]["parameters"]
     assert hf.validate_args({"command": "ls"}, schema) is None

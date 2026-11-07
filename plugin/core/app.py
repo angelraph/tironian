@@ -279,7 +279,7 @@ class App:
         return {"n": sc.n, "passed": sc.passed, "wilson_lo": sc.wilson_lo, "wilson_hi": sc.wilson_hi,
                 "validity": sc.validity, "gate_passed": sc.gate_passed, "gate_reason": sc.gate_reason,
                 "p50_ms": sc.p50_ms, "failures": sc.failures, "steps": sc.steps, "serve_steps": sc.serve_steps,
-                "judge": judge_state}
+                "judge": judge_state, "fresh": sc.fresh}
 
 
 def get_app(**kwargs: Any) -> App:

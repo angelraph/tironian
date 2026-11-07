@@ -437,6 +437,33 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
 
 # ============================================================== evaluation + promotion
 
+def _fresh_heldout(store: Store, settings: Settings, family_id: str, dataset_id: str,
+                   tool_schemas: list[dict[str, Any]]) -> list[str]:
+    """Held-out lines from sessions the student never saw: none of their steps is in the dataset
+    it was trained from. Every session recorded after training qualifies, so the proof grows
+    as you keep working, without training again."""
+    seen = {r["sid"] for r in store.q(
+        "SELECT DISTINCT t.session_id AS sid FROM dataset_items i JOIN decisions d ON d.id=i.decision_id "
+        "JOIN turns t ON t.id=d.turn_id WHERE i.dataset_id=?", (dataset_id,))}
+    rows = store.q(
+        "SELECT d.*, t.session_id AS sid FROM decisions d JOIN turns t ON t.id=d.turn_id "
+        "JOIN sessions s ON s.id=t.session_id "
+        "WHERE t.family_id=? AND t.label='good' AND d.served_by='teacher' AND s.excluded=0 "
+        "AND d.redaction_hits<=? AND d.context_z IS NOT NULL ORDER BY d.created_at, d.id",
+        (family_id, TRAINING_HIT_LIMIT))
+    out = []
+    for d in rows:
+        if d["sid"] in seen:
+            continue
+        ex, _why = _example(store, d, tool_schemas, settings.max_context_tokens)
+        if ex is None:
+            continue
+        out.append(json.dumps({"conversations": to_sharegpt(ex["compact"], ex["target"]), "family": family_id,
+                               "decision_id": d["id"], "completed": True, "teacher": ex["out"]},
+                              ensure_ascii=False))
+    return out
+
+
 def evaluate_student(store: Store, settings: Settings, *, student_id: str, dataset_id: str,
                      client: StudentClient, judge: Judge | None = None, limit: int | None = None,
                      progress: Callable[[int, int], None] | None = None) -> Scorecard:
@@ -449,6 +476,8 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     schemas = _schemas_by_name(store)
     tools = [schemas[t] for t in json.loads(f["toolset_json"] or "[]") if t in schemas]
     lines = Path(ds["path"], "heldout.jsonl").read_text(encoding="utf-8").splitlines()
+    fresh = _fresh_heldout(store, settings, family_id, dataset_id, tools)
+    lines += fresh
     if limit:
         lines = lines[:limit]
 
@@ -480,6 +509,7 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
 
     sc = gated_scorecard(checks, lats, kinds, threshold=settings.promotion_threshold, min_n=settings.min_eval_n,
                          validity_floor=settings.validity_floor)
+    sc.fresh = min(len(fresh), len(lines))
     store.meta_set(f"serve_steps:{family_id}", json.dumps(sc.serve_steps if sc.gate_passed else []))
     with store.tx() as c:
         c.execute(

@@ -159,8 +159,19 @@ def check_decision(student_text: str, teacher_content: str, teacher_calls: Seque
         return Check(False, True, reason="action_mismatch")
 
     if t_calls:
-        if [c["name"] for c in p.tool_calls] != [c["name"] for c in t_calls]:
-            return Check(False, True, action_match=True, reason="tool_mismatch")
+        if [c["name"] for c in p.tool_calls] == [c["name"] for c in t_calls]:
+            pairs = list(zip(p.tool_calls, t_calls))
+        else:
+            # The teacher sometimes runs a few commands at once. A student that runs some of
+            # those same commands took a correct step; anything else is a different step.
+            pairs, left = [], list(t_calls)
+            for s in p.tool_calls:
+                same = [t for t in left if t["name"] == s["name"]]
+                best = max(same, key=lambda t: args_score(s["arguments"], t["arguments"]), default=None)
+                if best is None or args_score(s["arguments"], best["arguments"]) < ARGS_PASS:
+                    return Check(False, True, action_match=True, reason="tool_mismatch")
+                pairs.append((s, best))
+                left.remove(best)
         schemas = tool_schema_map(tools)
         for c in p.tool_calls:
             if c["name"] not in schemas:
@@ -168,7 +179,7 @@ def check_decision(student_text: str, teacher_content: str, teacher_calls: Seque
             bad = validate_args(c["arguments"], schemas[c["name"]])
             if bad:
                 return Check(False, True, action_match=True, tool_match=True, reason=f"schema:{bad}")
-        score = min(args_score(s["arguments"], t["arguments"]) for s, t in zip(p.tool_calls, t_calls))
+        score = min(args_score(s["arguments"], t["arguments"]) for s, t in pairs)
         if score < ARGS_PASS and judge is not None:
             # A different command can be just as right (`ls *.png | wc -l` against `find -iname`).
             # The same blind pairwise judge decides; position alternates with ``flip``.
@@ -219,6 +230,7 @@ class Scorecard:
     #: each with its own n, pass count, bounds and gate. ``serve_steps`` lists the kinds that passed.
     steps: dict[str, dict[str, Any]] = field(default_factory=dict)
     serve_steps: list[str] = field(default_factory=list)
+    fresh: int = 0   # held-out steps from sessions recorded after the dataset was built
 
     @property
     def pass_rate(self) -> float:

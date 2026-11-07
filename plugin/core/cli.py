@@ -122,6 +122,8 @@ def run(args: Any) -> int:
         _p(f"{res['passed']}/{res['n']} held-out steps passed · 95% CI {res['wilson_lo']:.0%} to {res['wilson_hi']:.0%} "
            f"· format valid {res['validity']:.0%} · p50 {res['p50_ms']} ms")
         _p(f"  judge: {res.get('judge', 'off')}")
+        if res.get("fresh"):
+            _p(f"  {res['fresh']} of these steps come from sessions recorded after training")
         labels = {"first": "first step (answering the request)", "follow": "after a tool result"}
         for kind, d in res.get("steps", {}).items():
             _p(f"  {labels.get(kind, kind)}: {d['passed']}/{d['n']} · CI {d['wilson_lo']:.0%} to {d['wilson_hi']:.0%}"

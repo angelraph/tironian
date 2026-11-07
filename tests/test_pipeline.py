@@ -99,6 +99,17 @@ def test_end_to_end(app_factory, llama, tmp_path):
     msg = commands.set_status(app, "promote", disk["id"])
     assert "not yet" in msg
 
+    # 6. a session the student never saw (recorded after training) joins the held-out test
+    train_ids = [json.loads(x)["decision_id"] for x in Path(ds["path"], "train.jsonl").read_text(encoding="utf-8").splitlines()]
+    sid = app.store.scalar("SELECT t.session_id FROM decisions d JOIN turns t ON t.id=d.turn_id WHERE d.id=?", (train_ids[0],))
+    unseen = [r["id"] for r in app.store.q("SELECT d.id FROM decisions d JOIN turns t ON t.id=d.turn_id "
+                                            "WHERE t.session_id=?", (sid,))]
+    with app.store.tx() as c:
+        c.executemany("DELETE FROM dataset_items WHERE decision_id=?", [(u,) for u in unseen])
+    llama.replies = replies + ["<think>\n</think>\nok"] * 10
+    out = app.evaluate(student["id"])
+    assert out["fresh"] >= 1 and out["n"] == len(held) + out["fresh"]
+
 
 def test_dead_driver_fails_the_job_and_frees_the_trainer(app_factory, tmp_path):
     """Found live: the driver died mid-export without a final line and the job blocked every new run."""

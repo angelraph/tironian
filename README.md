@@ -34,7 +34,8 @@ runtime. Tironian connects them:
    interval on its pass rate there is at least 85%. So a model that writes the right command
    but can't yet summarise the result serves just the command, and your model writes the
    answer. When its command differs from your model's, an optional blind judge decides whether
-   both do the job.
+   both do the job. Sessions you record after training were never seen either, so they join
+   the test too: run `eval` again later and the evidence grows without training again.
 6. Once promoted, matching requests go to the small model. Its answer has to parse, call only
    tools the request actually offers, and pass those tools' argument schemas. If any of that
    fails, your usual model answers instead and you don't see the difference.

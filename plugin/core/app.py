@@ -135,26 +135,36 @@ class App:
             budget["left"] -= 1
             schema = {"type": "object", "properties": {"better": {"type": "string", "enum": ["a", "b", "tie"]}},
                       "required": ["better"]}
-            try:
-                with reentrant():
-                    res = self.llm.complete_structured(
-                        instructions=("Two assistant replies answer the same user request. A reply may be a "
-                                      "final answer or a tool call the assistant is about to make. Judge only "
-                                      "whether each would correctly serve that request. Answer 'tie' when both "
-                                      "are equally acceptable."),
-                        input=[{"type": "text", "text": f"REQUEST:\n{request[:3000]}\n\nREPLY A:\n{a[:3000]}\n\nREPLY B:\n{b[:3000]}"}],
-                        json_schema=schema, task="tironian_judge", purpose="tironian held-out evaluation",
-                        temperature=0, max_tokens=50)
-                parsed = getattr(res, "parsed", None) or {}
-                v = parsed.get("better") if isinstance(parsed, dict) else None
-                return v if v in ("a", "b", "tie") else None
-            except Exception as exc:
-                log.debug("judge call failed", exc_info=True)
-                self.judge_error = f"{type(exc).__name__}: {exc}"[:300]
-                return None
+            # Free and busy models time out now and then. One slow reply shouldn't turn a judged
+            # step into an unjudged miss, so try a few times before giving up on this step.
+            last: Exception | None = None
+            for attempt in range(3):
+                try:
+                    with reentrant():
+                        res = self.llm.complete_structured(
+                            instructions=("Two assistant replies answer the same user request. A reply may be a "
+                                          "final answer or a tool call the assistant is about to make. Judge only "
+                                          "whether each would correctly serve that request. Answer 'tie' when both "
+                                          "are equally acceptable."),
+                            input=[{"type": "text", "text": f"REQUEST:\n{request[:3000]}\n\nREPLY A:\n{a[:3000]}\n\nREPLY B:\n{b[:3000]}"}],
+                            json_schema=schema, task="tironian_judge", purpose="tironian held-out evaluation",
+                            temperature=0, max_tokens=50)
+                    parsed = getattr(res, "parsed", None) or {}
+                    v = parsed.get("better") if isinstance(parsed, dict) else None
+                    if v in ("a", "b", "tie"):
+                        return v
+                    last = ValueError(f"unreadable judge reply: {parsed!r}"[:200])
+                except Exception as exc:
+                    log.debug("judge call failed (attempt %d)", attempt + 1, exc_info=True)
+                    last = exc
+                time.sleep(2 * (attempt + 1))
+            self.judge_error = f"{type(last).__name__}: {last}"[:300]
+            self.judge_misses += 1
+            return None
         return ask
 
     judge_error: str | None = None
+    judge_misses: int = 0
 
     # First run
     def first_run(self) -> dict[str, Any] | None:
@@ -269,12 +279,13 @@ class App:
             if i == n or i % 5 == 0:
                 self.broadcast("eval.progress", {"student": student_id, "done": i, "total": n})
         judge = self.judge()
-        self.judge_error = None
+        self.judge_error, self.judge_misses = None, 0
         sc = pipeline.evaluate_student(self.store, self.settings(), student_id=student_id, dataset_id=ds_id,
                                        client=client, judge=judge, limit=limit, progress=progress)
         s = self.settings()
         judge_state = ("off" if not s.judge_enabled else "unavailable (no model access)" if judge is None
-                       else f"failed: {self.judge_error}" if self.judge_error else "on")
+                       else f"on, but {self.judge_misses} step(s) went unjudged ({self.judge_error})"
+                       if self.judge_error else "on")
         self.engine.invalidate()
         return {"n": sc.n, "passed": sc.passed, "wilson_lo": sc.wilson_lo, "wilson_hi": sc.wilson_hi,
                 "validity": sc.validity, "gate_passed": sc.gate_passed, "gate_reason": sc.gate_reason,

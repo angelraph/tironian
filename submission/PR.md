@@ -13,7 +13,7 @@ Tironian trains a small local model on the requests you keep repeating in Hermes
 
 **Results on my machine** (no GPU, free hosted model, student on Ollama): an early student scored 7 of 31 and was refused; the current one wrote the right first command on 51 of 51 held-out first steps (lower bound 93%), agreed with my model 18 of 20 times in shadow mode, and now writes the first command of those requests locally while my model writes the answer. Training cost about $0.14 on a Modal L4.
 
-Demo (86 s): see the X post. Site and docs: https://tironian.vercel.app
+Demo video (under 90 s): https://tironian.vercel.app/#demo. Site and docs: https://tironian.vercel.app
 
 ## Hermes surfaces used
 
@@ -44,8 +44,10 @@ No tools, no core overrides, no `sys.modules` or `setattr` on Hermes objects. Th
 2. `python -m pytest tests -q` in the repo: 75 tests covering redaction, grading, clustering, the dataset split, the per-step Wilson gate, the judge, and every routing fallback path (malformed output, unknown tool, schema failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion, shadow mode never blocking). CI runs them on Linux and Windows, Python 3.11 to 3.14.
 3. Without any spend: `hermes plugins enable tironian`, then `/tironian report` in any session, and `hermes tironian train <family> --backend dry-run --follow`.
 
-`validate`, `doctor` and the tests also pass on v0.23.0. Checked live on Hermes v0.22.7 on Windows: validate and doctor pass, capture records streaming turns, and a small model answered a real turn through the middleware; when Hermes blocked its command, the user's model took over and finished the task.
+Checked live on Windows with Hermes v0.22.7 and v0.23.0: validate and doctor pass at the pinned SHA, capture records streaming turns, a trained student passed the gate, ran in shadow mode, and now writes the first step of matching requests through the middleware. With the student unreachable, my usual model answered and the turn was logged as a fallback, with nothing shown to me.
 
-## Screenshots
+## Screenshot
 
-(Desktop page and terminal screenshots attached below.)
+The Tironian page in the Hermes web app on my machine, with the count-files family live:
+
+![Tironian page in Hermes](https://raw.githubusercontent.com/angelraph/tironian/master/web/assets/screens/tironian-page.png)

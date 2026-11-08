@@ -189,6 +189,10 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
         children: [
           jsx(TestResult, { f }),
           f.shadow_n ? jsx('span', { children: `shadow: agreed ${f.shadow_agree} of ${f.shadow_n}` }) : null,
+          f.spot_n ? jsx('span', { title: 'Your usual model answers a share of live requests and the student is judged against it, to catch drift', children: `spot checks: agreed ${f.spot_agree} of ${f.spot_n}` }) : null,
+          f.status === 'shadow' && (f.status_reason || '').startsWith('drift')
+            ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: `back in shadow: ${f.status_reason.replace(/^drift: /, '')}` })
+            : null,
           f.served ? jsx('span', { children: `answered ${plural(f.served, 'request')}` }) : null,
           note ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: note }) : null
         ]

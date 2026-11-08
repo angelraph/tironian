@@ -522,9 +522,12 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
         c.executemany("INSERT INTO eval_items(eval_id, decision_id, student_out, checks_json, pass) VALUES(?,?,?,?,?)",
                       item_rows)
         if sc.gate_passed:
-            c.execute("UPDATE families SET status=?, student_id=?, updated_at=? WHERE id=? AND status IN "
-                      "('candidate','trained','evaluated','demoted','shadow')",
-                      (settings.promotion_mode, student_id, time.time(), family_id))
+            moved = c.execute("UPDATE families SET status=?, student_id=?, updated_at=? WHERE id=? AND status IN "
+                              "('candidate','trained','evaluated','demoted','shadow')",
+                              (settings.promotion_mode, student_id, time.time(), family_id)).rowcount
+            if moved:
+                c.execute("INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                          (f"status_since:{family_id}", repr(time.time())))
         else:
             # Link the student even on a fail, so status and `/tironian shadow` can say *why* it can't serve.
             c.execute("UPDATE families SET status='evaluated', student_id=?, updated_at=? WHERE id=? AND status IN "
@@ -533,8 +536,14 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
 
 
 def shadow_ready(store: Store, family_id: str, *, min_n: int = 20, threshold: float = 0.85) -> tuple[bool, str]:
+    # Only samples since the family last changed status: a student sent back to shadow for
+    # drifting has to earn its way back with new evidence, not old agreements.
+    try:
+        since = float(store.meta_get(f"status_since:{family_id}") or 0)
+    except (TypeError, ValueError):
+        since = 0.0
     rows = store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='shadow' AND outcome IN "
-                   "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 200", (family_id,))
+                   "('shadow_agree','shadow_disagree') AND created_at>=? ORDER BY id DESC LIMIT 200", (family_id, since))
     n = len(rows)
     agree = sum(1 for r in rows if r["outcome"] == "shadow_agree")
     if n < min_n:

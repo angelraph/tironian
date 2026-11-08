@@ -119,6 +119,7 @@ def app_factory(tmp_path):
     made = []
 
     def make(async_capture=False, **settings):
+        settings.setdefault("spot_check_rate", 0.0)   # tests that want spot checks turn them on
         a = App(data_dir=tmp_path / "plugin-data" / "tironian", config_get=lambda k, default=None: settings.get(k, default),
                 secret=lambda n: None, broadcast=lambda k, p: None)
         a.engine.sync_capture = not async_capture

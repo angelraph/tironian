@@ -100,6 +100,11 @@ def families() -> dict[str, Any]:
         d["served"] = served
         d["shadow_n"] = len(shadow)
         d["shadow_agree"] = sum(1 for x in shadow if x["outcome"] == "shadow_agree")
+        spot = app.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='spot' AND outcome IN "
+                           "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 20", (r["id"],))
+        d["spot_n"] = len(spot)
+        d["spot_agree"] = sum(1 for x in spot if x["outcome"] == "shadow_agree")
+        d["status_reason"] = app.store.meta_get(f"status_reason:{r['id']}") or ""
         out.append(d)
     return {"families": out, "min_family_turns": app.settings().min_family_turns}
 

@@ -98,6 +98,31 @@ def resolve_endpoint(configured: str, model_id: str | None = None, *, ttl_s: flo
     return chosen
 
 
+def is_ollama(endpoint: str) -> bool:
+    return ":11434" in endpoint
+
+
+def keep_warm(endpoint: str, model_id: str, *, keep_alive: str = "60m", timeout_s: float = 120.0) -> bool:
+    """Load a student into Ollama and ask it to keep it loaded for ``keep_alive``.
+
+    Ollama unloads an idle model after five minutes, and loading a 1.7B model on a CPU takes
+    longer than the routing deadline, so without this the first request after a pause always
+    falls back. Ollama's OpenAI endpoint ignores keep_alive, so this uses its own API.
+    """
+    import json
+    import urllib.request
+    base = endpoint.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    body = json.dumps({"model": model_id, "keep_alive": keep_alive, "prompt": "", "stream": False}).encode()
+    req = urllib.request.Request(f"{base}/api/generate", data=body, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:  # noqa: S310 - local Ollama only
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 def forget() -> None:
     with _lock:
         _cache.clear()

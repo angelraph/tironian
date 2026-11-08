@@ -263,6 +263,60 @@ def test_auto_demote_on_high_fallback_rate(app_factory, llama):
     assert app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "shadow"
 
 
+def _wait_routes(app, n):
+    import time
+    for _ in range(100):
+        if app.store.scalar("SELECT COUNT(*) FROM routes") >= n:
+            return
+        time.sleep(0.03)
+
+
+def test_spot_checks_catch_drift_and_send_the_family_back_to_shadow(app_factory, llama):
+    """Asked on X: how does it notice that a task changed after training? A live family's
+    requests are spot-checked against your model; if the student stops agreeing, it goes back."""
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url, spot_check_rate=1.0)
+    promote(app, llama)
+    llama.replies = [render_target("Nothing much there.", [])] * 20   # no longer matches the teacher
+    for i in range(10):
+        t = Teacher()
+        run_turn(app, "what's using disk space in ~/Downloads", t, turn=f"s{i}")
+        assert t.calls == 1                      # a spot check: your model answered as before
+        _wait_routes(app, i + 1)
+    modes = {r["mode"] for r in app.store.q("SELECT mode FROM routes")}
+    assert modes == {"spot"}
+    import time
+    for _ in range(100):   # the drift check runs right after the tenth sample is stored
+        if app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "shadow":
+            break
+        time.sleep(0.03)
+    assert app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "shadow"
+    assert "drift" in (app.store.meta_get("status_reason:fdisk") or "")
+
+
+def test_spot_checks_leave_an_agreeing_student_live(app_factory, llama):
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url, spot_check_rate=1.0)
+    promote(app, llama)
+    llama.replies = [render_target("done", [])] * 20   # same as the teacher's answer
+    for i in range(10):
+        run_turn(app, "what's using disk space in ~/Downloads", Teacher(), turn=f"a{i}")
+        _wait_routes(app, i + 1)
+    assert app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "live"
+
+
+def test_shadow_evidence_starts_again_after_a_demotion(app_factory, llama):
+    from tironian.core import pipeline
+    app = app_factory()
+    promote(app, llama, status="shadow")
+    with app.store.tx() as c:
+        c.executemany("INSERT INTO routes(turn_id, family_id, mode, outcome, created_at) VALUES(?,?,?,?,?)",
+                      [(f"old{i}", "fdisk", "shadow", "shadow_agree", 100.0) for i in range(25)])
+    assert pipeline.shadow_ready(app.store, "fdisk")[0]
+    app.engine.clock = lambda: 200.0
+    app.engine.set_family_status("fdisk", "shadow", reason="drift")
+    ok, why = pipeline.shadow_ready(app.store, "fdisk")
+    assert not ok and "0/20" in why
+
+
 def test_excluded_session_not_captured(app_factory):
     app = app_factory()
     app.engine.exclude_session("s1")

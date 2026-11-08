@@ -52,7 +52,15 @@ def status_text(app: App) -> str:
             steps = []
         which = {"first": "first steps", "follow": "steps after a tool result"}
         part = " and ".join(which.get(k, k) for k in steps) or "all steps"
-        lines.append(f"  {f['name']} ({f['id']}): {f['status']}, {part} · {f['model_id']}")
+        line = f"  {f['name']} ({f['id']}): {f['status']}, {part} · {f['model_id']}"
+        spot = app.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='spot' AND outcome IN "
+                           "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 20", (f["id"],))
+        if spot:
+            line += f" · spot checks: agreed {sum(r['outcome'] == 'shadow_agree' for r in spot)} of {len(spot)}"
+        reason = app.store.meta_get(f"status_reason:{f['id']}") or ""
+        if f["status"] == "shadow" and reason.startswith("drift"):
+            line += f" · back in shadow ({reason})"
+        lines.append(line)
     saved = _usd(s["saved_usd"])
     if not s["saved_usd"] and s["served"]:
         saved += " (your usual model is free)"

@@ -164,10 +164,16 @@ class Engine:
             return
 
         def run() -> None:
+            from .serve import is_ollama, keep_warm
             for m in models:
                 try:
                     client = self._student(s)
                     client.timeout_s = 120.0
+                    endpoint = str(getattr(client, "endpoint", "") or "")
+                    # With Ollama, load it and ask for it to stay loaded for an hour, so a pause
+                    # between requests doesn't send the next one past the routing deadline.
+                    if self.student_factory is None and is_ollama(endpoint) and keep_warm(endpoint, m):
+                        continue
                     with reentrant():
                         client.complete(m, [{"role": "user", "content": "hi"}], max_tokens=1)
                 except Exception:
@@ -410,7 +416,7 @@ class Engine:
         latency = int((time.monotonic() - started) * 1000)
         try:
             self._capture_soon(kw, request, response, latency)
-            if plan is not None and plan["mode"] == "shadow":
+            if plan is not None and plan["mode"] in ("shadow", "spot"):
                 self._shadow(plan, kw, response)
         except Exception:
             log.debug("tironian capture failed", exc_info=True)
@@ -450,7 +456,12 @@ class Engine:
             return None
         if chosen.status == "live" and not s.routing_enabled:
             return None
-        return {"mode": chosen.status, "family": chosen, "turn": st, "compact": compact,
+        mode = chosen.status
+        if mode == "live" and self._spot_check(st.turn_id, s):
+            # Now and then your model answers a live family's request as before and the student is
+            # judged in the background, so a task that changes after training gets noticed.
+            mode = "spot"
+        return {"mode": mode, "family": chosen, "turn": st, "compact": compact,
                 "tools": family_tools, "api_mode": api_mode, "settings": s}
 
     def _validate(self, text: str, tools: list[dict[str, Any]], st: TurnState) -> tuple[Any, str | None]:
@@ -549,10 +560,12 @@ class Engine:
                         "teacher": (teacher.get("tool_calls") or teacher.get("content") or "")}, default=str)[:4000])
                 self.store.insert("routes", {
                     "turn_id": plan["turn"].turn_id, "decision_id": kw.get("api_request_id"),
-                    "family_id": chosen.family.id, "mode": "shadow", "student_id": chosen.student_model,
+                    "family_id": chosen.family.id, "mode": plan["mode"], "student_id": chosen.student_model,
                     "outcome": outcome, "latency_ms": reply.latency_ms, "saved_usd": 0.0,
                     "created_at": self.clock()})
-                self._emit("route.shadow", {"family": chosen.family.id, "outcome": outcome})
+                self._emit("route.shadow", {"family": chosen.family.id, "outcome": outcome, "mode": plan["mode"]})
+                if plan["mode"] == "spot":
+                    self._check_drift(chosen.family.id, s)
             except Exception:
                 log.debug("tironian shadow replay failed", exc_info=True)
             finally:
@@ -560,9 +573,38 @@ class Engine:
 
         threading.Thread(target=run, name="tironian-shadow", daemon=True).start()
 
+    def _spot_check(self, turn_id: str, s: Settings) -> bool:
+        """Pick about `spot_check_rate` of a live family's requests, the same way for the same turn."""
+        rate = float(getattr(s, "spot_check_rate", 0.0) or 0.0)
+        if rate <= 0:
+            return False
+        h = int(hashlib.sha1(str(turn_id).encode()).hexdigest()[:8], 16) % 10000
+        return h < rate * 10000
+
+    def _since(self, family_id: str) -> float:
+        """When the family last changed status. Evidence from before that doesn't count."""
+        try:
+            return float(self.store.meta_get(f"status_since:{family_id}") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _check_drift(self, family_id: str, s: Settings, *, window: int = 20, min_n: int = 10) -> None:
+        """A live student that stops agreeing with your model on spot checks goes back to shadow."""
+        rows = self.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='spot' AND outcome IN "
+                            "('shadow_agree','shadow_disagree') AND created_at>=? ORDER BY id DESC LIMIT ?",
+                            (family_id, self._since(family_id), window))
+        n = len(rows)
+        if n < min_n:
+            return
+        agree = sum(1 for r in rows if r["outcome"] == "shadow_agree")
+        if agree / n < s.promotion_threshold:
+            reason = f"drift: agreed with your model on {agree} of its last {n} spot checks"
+            self.store.meta_set(f"drift:{family_id}", json.dumps({"agree": agree, "n": n, "at": self.clock()}))
+            self.set_family_status(family_id, "shadow", reason=reason)
+
     def _check_auto_demote(self, family_id: str) -> None:
-        rows = self.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='live' "
-                            "ORDER BY id DESC LIMIT 50", (family_id,))
+        rows = self.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='live' AND created_at>=? "
+                            "ORDER BY id DESC LIMIT 50", (family_id, self._since(family_id)))
         if len(rows) >= 20:
             fb = sum(1 for r in rows if r["outcome"] != "served")
             if fb / len(rows) > 0.10:
@@ -574,13 +616,18 @@ class Engine:
             return
         bad = self.store.scalar(
             "SELECT COUNT(*) FROM turns t WHERE t.explicit<0 AND t.id IN "
-            "(SELECT turn_id FROM routes WHERE family_id=? AND outcome='served')", (r["family_id"],), 0)
+            "(SELECT turn_id FROM routes WHERE family_id=? AND outcome='served' AND created_at>=?)",
+            (r["family_id"], self._since(r["family_id"])), 0)
         if bad >= 2:
             self.set_family_status(r["family_id"], "shadow", reason="marked bad twice")
 
     def set_family_status(self, family_id: str, status: str, *, reason: str = "") -> None:
         with self.store.tx() as c:
             c.execute("UPDATE families SET status=?, updated_at=? WHERE id=?", (status, self.clock(), family_id))
+        # Each status starts a fresh window of evidence: shadow samples, fallbacks, bad marks and
+        # spot checks from before this change say nothing about the student's next stretch.
+        self.store.meta_set(f"status_since:{family_id}", repr(self.clock()))
+        self.store.meta_set(f"status_reason:{family_id}", reason)
         self.invalidate()
         self._emit("family.status", {"family": family_id, "status": status, "reason": reason})
 

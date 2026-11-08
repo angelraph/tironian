@@ -40,7 +40,7 @@ _SYNONYMS: list[tuple[re.Pattern[str], str]] = [(re.compile(rf"\b(?:{a})\b"), b)
     (r"take(?:s)? up the most (?:space|room)|use(?:s)? the most (?:space|room)|eating (?:up )?(?:space|disk)|"
      r"biggest|largest|heaviest", "largest"),
     (r"most recently (?:modified|changed|edited|updated)|changed most recently|modified most recently|"
-     r"newest|latest|most recent|recently (?:modified|changed)", "recent"),
+     r"(?:modified|changed|edited|updated) last|newest|latest|most recent|recently (?:modified|changed)", "recent"),
     (r"how many|count|number of", "count"),
     (r"directory|directories|dir|folders?", "folder"),
     (r"show(?: me)?|list|display|find|give me|tell me|what are|which", "show"),

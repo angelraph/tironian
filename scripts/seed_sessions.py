@@ -37,6 +37,9 @@ RECENT = [
     "What are the {k} most recently modified files in my {f} folder? Use the terminal.",
     "Use the terminal to show the {k} newest files in {f}.",
     "Which {k} files in {f} changed most recently? Check with the terminal.",
+    "List the {k} latest files in my {f} folder using the terminal.",
+    "Using the terminal, which {k} files in {f} were modified last?",
+    "Show me the {k} most recent files in {f} (use the terminal).",
 ]
 
 

@@ -131,6 +131,8 @@ class App:
 
         def ask(request: str, a: str, b: str) -> str | None:
             if budget["left"] <= 0:
+                self.judge_error = f"the judge budget of {s.judge_daily_budget} calls per run ran out (judge_daily_budget)"
+                self.judge_misses += 1
                 return None
             budget["left"] -= 1
             schema = {"type": "object", "properties": {"better": {"type": "string", "enum": ["a", "b", "tie"]}},

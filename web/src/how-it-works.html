@@ -100,7 +100,7 @@
     <ul>
       <li>the output parses, with valid tool call JSON and no stray tags,</li>
       <li>it takes the same kind of action (a tool call or a final answer),</li>
-      <li>it calls the same tools with arguments that pass their schemas and match yours (80% of keys equal after normalising whitespace, quotes and slashes; a long value such as a shell command matches when most of its words agree, and if it still differs, the blind judge decides whether both commands do the job),</li>
+      <li>it calls the same tools (when your model ran a few commands at once, running some of those same commands counts) with arguments that pass their schemas and match yours (80% of keys equal after normalising whitespace, quotes and slashes; a long value such as a shell command matches when most of its words agree, and if it still differs, the blind judge decides whether both commands do the job),</li>
       <li>for a final answer, a blind judge prefers it or calls it a tie, or without a judge, its wording overlaps yours enough.</li>
     </ul>
     <p>Then comes the decision. Tironian computes the <b>Wilson score interval</b> for the pass rate and looks at its <b>lower</b> end, not the average. Passing 10 of 10 sounds perfect, but the lower bound is only 72%, because 10 examples prove very little. Passing 55 of 60 gives a lower bound of 82%. The default gate needs 85%, at least 30 held-out steps and 98% format validity.</p>
@@ -109,6 +109,7 @@ p̂ = 0.917
 Wilson 95% interval = [0.819, 0.964]
 gate: 0.819 &lt; 0.85  →  not yet</pre>
     <p>The first step of a task (answering your request) and the steps that come after a tool result are scored <b>separately</b>, each with its own 30 step minimum and its own lower bound. Small models are often good at the first and shaky at the second: the first student Tironian trained on my machine wrote the right <code>find</code> command almost every time, then kept running more commands instead of reading the result. With separate scores it can serve just the first step, and your model writes the answer from the output. A kind of step never gets in on the strength of another.</p>
+    <p>The held-out set is not fixed at training time. Any session you record after training is one the model has never seen, so it joins the test too. That matters because the bar is strict: at 30 steps, even 29 right gives a lower bound of 83%, so a good model can sit just under the line. Rather than lowering the bar or paying for another run, you keep working and run <code>hermes tironian eval</code> again with more evidence.</p>
     <p>A model that passes moves to shadow mode. It answers real requests in the background, its answers are compared with your model's, and only when it agrees often enough can you let it answer for real.</p>
 
     <h2 id="routing">6. Routing</h2>

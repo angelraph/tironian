@@ -56,6 +56,22 @@
   <div class="wrap">
     <div class="timeline">
       <div class="entry reveal">
+        <time>Nov 7, 2026</time>
+        <div>
+          <h3>First real students, and a stricter, fairer test</h3>
+          <p>Four count-files students were trained on Modal for about $0.15 each. The fourth writes the right command on 29 of 30 first steps it never saw. Getting there turned up a lot:</p>
+          <ul>
+            <li>Students load into Ollama on their own after training. Hermes's own local runtime wasn't on my machine, and a model you have to load by hand is a model nobody tests.</li>
+            <li>The first step of a task and the steps after a tool result are now gated apart. The student is great at the first and weak at the second, so it serves the command and your model writes the answer.</li>
+            <li>When a student's command differs from yours, the blind judge decides whether both do the job. <code>ls *.png | wc -l</code> and <code>find -iname</code> are both right.</li>
+            <li>The training prompt and the serving prompt now match exactly, down to Qwen3's empty think block.</li>
+            <li>Grouping threw away "count" once count requests were most of my history, because it ignored any word in over half of all requests. Now a frequent word is ignored only if it is spread across kinds of request.</li>
+            <li>Sessions recorded after training join the test, so the proof grows as you work.</li>
+            <li>A training job whose process died mid-export no longer blocks every later run.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="entry reveal">
         <time>Nov 6, 2026</time>
         <div>
           <h3>Fixes found on real data</h3>

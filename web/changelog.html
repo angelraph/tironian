@@ -68,6 +68,14 @@
             <li>The Tironian page showed the overall score of a family that passed on first steps, which read like a failure. It now shows each kind of step as the gate judged it.</li>
             <li>The docs said training costs about $0.30. My runs cost $0.14, so they now say about $0.15.</li>
           </ul>
+          <p>Then someone asked on X how Tironian notices that a task has changed after training. It didn't, well enough, so now it does:</p>
+          <ul>
+            <li>Spot checks: about 1 in 10 of a live family's requests still go to your usual model, while the student is judged against it in the background. Under 85% agreement over the last 20 sends the family back to shadow mode by itself.</li>
+            <li>One correction, re-ask or denied approval on a turn the student took part in is enough to send it back, instead of two bad marks.</li>
+            <li>Every status change starts a fresh window of evidence, so a demoted student earns its way back with new agreements.</li>
+            <li><code>/tironian forget</code> forgets a session exactly: its data goes, and any student trained on it stops answering until it is retrained without it.</li>
+            <li>Students stay loaded in Ollama for an hour after each session starts, so the first request after a pause is served instead of falling back.</li>
+          </ul>
         </div>
       </div>
       <div class="entry reveal">

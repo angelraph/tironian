@@ -97,8 +97,16 @@ Finally, switch on "Let promoted students answer" in the plugin settings.
   the turn. Recovering from a failed step is exactly what a small model is worst at.
 - Hermes's own guardrails and approvals apply to the small model's tool calls the same way they
   apply to your model's.
-- A live model drops back to shadow mode if more than 10% of its last 50 requests fell back,
-  or if you mark two of its answers as bad.
+- A live model drops back to shadow mode if more than 10% of its last 50 requests fell back, or
+  the first time you correct, re-ask or deny a turn it took part in.
+- About 1 in 10 of a live family's requests are spot checks (`spot_check_rate`): your usual
+  model answers as before and the student is judged against it in the background. If it agrees
+  on fewer than 85% of its last 20, it goes back to shadow mode by itself, so a task that
+  changes after training gets noticed.
+- After any status change the evidence starts again, so a demoted student earns its way back
+  with new agreements.
+- `/tironian forget` (or deleting the chat in Hermes) deletes a session's data and takes any
+  student that trained on it off duty until it is retrained without it.
 - Only steps your own model produced, in turns graded good, are used for training. A small
   model never learns from another small model.
 

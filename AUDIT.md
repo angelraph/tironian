@@ -35,11 +35,16 @@ and what I did about it. Every fix has a commit that explains why.
 | The Hermes page showed the overall score of a family that passed on first steps, and counted relabelled shadow samples | It shows each kind of step as the gate judged it, and the same samples promotion counts |
 | The docs said training cost $0.30 and promised speed | They now say about $0.15, and speed only with a GPU |
 | A planned feature (a judge for unclear turns) was described but never built | The claim was removed |
+| A task that changes after training wasn't noticed until answers started falling back | Spot checks judge the student against your model on about 1 in 10 live requests; under 85% of the last 20 sends it back to shadow |
+| Demotion rules counted all-time history, so a re-promoted student could be knocked down by old mistakes, and a demoted one promoted on old agreements | Every status change starts a fresh window of evidence |
+| It took two bad marks to take a family away after a corrected answer | One correction, re-ask or denial of a turn the student took part in is enough |
+| Deleting a session removed its data, but a student trained on it kept answering | Forgetting a session takes every student that saw it off duty until retrained |
+| Ollama unloaded an idle student after 5 minutes, so the first request after a pause fell back | The warm-up asks Ollama to keep it loaded for an hour |
 
 ## Still open
 
-- No automatic retest when a family's requests drift. Today the fallback rate and your marks send
-  a drifting family back to shadow mode, and `eval` can be rerun by hand.
+- Spot checks send about 1 in 10 of a live family's requests to your usual model. That is the
+  price of catching drift; it can be lowered or turned off.
 - Only tested live on Windows. CI covers Linux and Windows; macOS is untested.
 - On a CPU-only machine the student takes about 6 seconds a step, so the gain there is cost and
   privacy rather than speed.

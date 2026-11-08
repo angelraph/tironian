@@ -34,7 +34,9 @@ and no cost, so anyone can see in a minute what they repeat.
 - Each kind of step is gated on its own, so a student serves only what it has proven.
 - Every live answer must parse, use only offered tools and fit their schemas, or your usual model
   answers. A model that falls back too often demotes itself.
-- 75 tests cover every fallback path, with CI on Linux and Windows.
+- Spot checks on live requests catch a task that changes after training, and one correction
+  sends a student back to shadow mode.
+- 81 tests cover every fallback path, with CI on Linux and Windows.
 - Live evidence: the gate refused my early student at 7 of 31, passed the current one at 51 of 51
   (lower bound 93%), shadow mode agreed 18 of 20, and a live fallback with the student
   unreachable showed nothing to me.

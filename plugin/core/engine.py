@@ -505,6 +505,11 @@ class Engine:
                                          plan["tools"], user_request=plan["turn"].user_text,
                                          judge=self._shadow_judge(), flip=bool(self._shadow_n % 2))
                     outcome = "shadow_agree" if chk.passed else "shadow_disagree"
+                    # Keep the why, so `/tironian why` can explain a student that isn't promoted.
+                    self.store.meta_set(f"shadow_last:{chosen.family.id}", json.dumps({
+                        "outcome": outcome, "reason": chk.reason, "judge": chk.text,
+                        "judge_on": self._judge is not None, "student": reply.text[:600],
+                        "teacher": (teacher.get("tool_calls") or teacher.get("content") or "")}, default=str)[:4000])
                 self.store.insert("routes", {
                     "turn_id": plan["turn"].turn_id, "decision_id": kw.get("api_request_id"),
                     "family_id": chosen.family.id, "mode": "shadow", "student_id": chosen.student_model,

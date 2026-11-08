@@ -213,6 +213,23 @@ def test_shadow_uses_the_judge(app_factory, llama):
     assert seen and app.store.scalar("SELECT outcome FROM routes") == "shadow_agree"
 
 
+def test_session_start_warms_the_student(app_factory, llama):
+    """Found live: Ollama unloads an idle student and the cold start blew the routing deadline."""
+    import time
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    app.engine.warm_enabled = True
+    before = len(llama.calls)
+    app.engine.on_session_start(session_id="warm-1", platform="cli")
+    app.engine.on_session_start(session_id="warm-2", platform="cli")   # once is enough
+    for _ in range(50):
+        if len(llama.calls) > before:
+            break
+        time.sleep(0.05)
+    time.sleep(0.1)
+    assert len(llama.calls) == before + 1
+
+
 def test_auto_demote_on_high_fallback_rate(app_factory, llama):
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)
     promote(app, llama)

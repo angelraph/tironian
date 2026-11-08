@@ -145,6 +145,34 @@ class Engine:
             "id": sid, "platform": platform, "provider": kw.get("provider"), "model": kw.get("model"),
             "started_at": self.clock(), "ended_at": None, "completed": None,
             "excluded": int(excluded), "exclude_reason": "platform" if excluded else None, "source": "live"})
+        if s.routing_enabled and not excluded and self.warm_enabled:
+            self._warm(s)
+
+    _warmed_at: float = -1e9
+    warm_enabled: bool = True
+
+    def _warm(self, s: Settings) -> None:
+        """Load the students into the local server when a session starts. Ollama unloads an idle
+        model after a few minutes, and reloading takes longer than the routing deadline, so
+        without this the first matching request would always fall back."""
+        now = time.monotonic()
+        if now - self._warmed_at < 120:
+            return
+        self._warmed_at = now
+        models = sorted({p.student_model for p in self.promoted()})
+        if not models:
+            return
+
+        def run() -> None:
+            for m in models:
+                try:
+                    client = self._student(s)
+                    client.timeout_s = 120.0
+                    with reentrant():
+                        client.complete(m, [{"role": "user", "content": "hi"}], max_tokens=1)
+                except Exception:
+                    log.debug("tironian: warm-up of %s failed", m, exc_info=True)
+        threading.Thread(target=run, name="tironian-warm", daemon=True).start()
 
     def on_subagent_start(self, **kw: Any) -> None:
         child = kw.get("child_session_id")
@@ -493,8 +521,11 @@ class Engine:
                 from .evaluate import check_decision
                 s: Settings = plan["settings"]
                 chosen: PromotedFamily = plan["family"]
+                # Nothing waits on a shadow answer, so a slow cold start isn't a failure here.
+                client = self._student(s)
+                client.timeout_s = max(120.0, float(s.student_timeout_s))
                 with reentrant():
-                    reply = self._student(s).complete(chosen.student_model, plan["compact"].messages)
+                    reply = client.complete(chosen.student_model, plan["compact"].messages)
                 if not reply.ok:
                     outcome = "shadow_error"
                 else:

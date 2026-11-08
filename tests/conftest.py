@@ -122,6 +122,7 @@ def app_factory(tmp_path):
         a = App(data_dir=tmp_path / "plugin-data" / "tironian", config_get=lambda k, default=None: settings.get(k, default),
                 secret=lambda n: None, broadcast=lambda k, p: None)
         a.engine.sync_capture = not async_capture
+        a.engine.warm_enabled = False   # tests count student calls; warm-up has its own test
         made.append(a)
         return a
 

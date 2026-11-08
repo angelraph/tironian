@@ -227,6 +227,12 @@ class App:
         self.broadcast("job.updated", {"job": jid, "state": "queued"})
         return jid
 
+    def resume_training(self, job_id: str) -> str:
+        from . import jobs
+        remote = jobs.resume(self.store, self.data_dir, job_id, secrets=self.modal_secrets())
+        self.broadcast("job.updated", {"job": job_id, "state": "starting"})
+        return remote
+
     def poll_job(self, job_id: str) -> dict[str, Any] | None:
         from . import jobs, pipeline
         row = jobs.reconcile(self.store, self.data_dir, job_id)

@@ -180,6 +180,50 @@ def test_forgetting_a_session_takes_its_student_off_duty(app_factory, llama, tmp
     assert "No trained student learned from it" in commands.forget_text(app, hsid)
 
 
+def test_a_lost_modal_job_can_be_resumed_without_a_new_run(app_factory, monkeypatch):
+    """Found live: a network blip ended a Modal job halfway, though the GPU run carried on."""
+    app = app_factory()
+    jdir = app.data_dir / "jobs" / "job-x"
+    jdir.mkdir(parents=True)
+    (jdir / "job.json").write_text(json.dumps({"job_id": "job-x", "base": "q", "name": "n"}), encoding="utf-8")
+    (jdir / "status.jsonl").write_text(json.dumps({"t": 1, "state": "failed", "progress": 1.0,
+                                                   "message": "ConnectionError: Deadline exceeded",
+                                                   "remote_id": "fc-123"}) + "\n", encoding="utf-8")
+    app.store.upsert("jobs", {"id": "job-x", "kind": "train", "backend": "modal", "status": "failed",
+                              "remote_id": "fc-123", "dataset_id": "d", "family_id": "f", "params_json": "{}",
+                              "progress": 1.0, "message": "x", "started_at": 1})
+    spawned = []
+    monkeypatch.setattr(jobs, "_spawn", lambda *a, **k: spawned.append(a))
+    assert app.resume_training("job-x") == "fc-123"
+    assert json.loads((jdir / "job.json").read_text())["remote_id"] == "fc-123" and spawned
+    assert app.store.scalar("SELECT status FROM jobs WHERE id='job-x'") == "starting"
+    # A job that never reached Modal has nothing to reattach to.
+    app.store.upsert("jobs", {"id": "job-y", "kind": "train", "backend": "modal", "status": "failed", "remote_id": None,
+                              "dataset_id": "d", "family_id": "f", "params_json": "{}", "progress": 1.0,
+                              "message": "x", "started_at": 1})
+    (app.data_dir / "jobs" / "job-y").mkdir()
+    with app.store.tx() as c:
+        c.execute("UPDATE jobs SET status='done' WHERE id='job-x'")
+    try:
+        app.resume_training("job-y")
+        raise AssertionError("expected a refusal")
+    except ValueError as exc:
+        assert "never reached Modal" in str(exc)
+
+
+def test_driver_treats_network_blips_as_transient():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("driver", Path(__file__).resolve().parent.parent / "plugin" / "trainer" / "driver.py")
+    d = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(d)
+
+    class ModalConnErr(Exception):
+        pass
+    assert d.is_transient(ConnectionError("Deadline exceeded"))
+    assert d.is_transient(ModalConnErr("Deadline exceeded"))
+    assert not d.is_transient(RuntimeError("GGUF export produced no file"))
+
+
 def test_bad_student_fails_gate(app_factory, llama, tmp_path):
     app = app_factory(student_endpoint=llama.url, min_eval_n=5)
     make_state_db(app.state_db)

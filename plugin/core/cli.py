@@ -105,6 +105,15 @@ def run(args: Any) -> int:
             return _follow(app, rows[0]["id"])
         if not rows:
             _p("No training jobs yet.")
+    elif cmd == "resume":
+        try:
+            remote = app.resume_training(args.job)
+        except ValueError as exc:
+            _p(f"Can't resume: {exc}")
+            return 1
+        _p(f"Reattached {args.job} to Modal run {remote}. No new GPU time is started.")
+        if args.follow:
+            return _follow(app, args.job)
     elif cmd == "cancel":
         jobs.cancel(app.data_dir, args.job)
         _p("Cancellation requested.")

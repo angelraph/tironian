@@ -214,6 +214,41 @@ def check_modal(data_dir: Path, secrets: dict[str, str]) -> tuple[bool, str]:
         return False, f"check failed: {exc}"
 
 
+def resume(store: Store, data_dir: Path, job_id: str, secrets: dict[str, str] | None = None) -> str:
+    """Reattach to a Modal run whose connection was lost, instead of paying to train again.
+
+    The GPU job keeps running on Modal when this machine loses touch with it (a network blip, the
+    laptop sleeping). Its id is in the job's status, so a new driver can wait for the same run
+    and download its result.
+    """
+    row = store.one("SELECT * FROM jobs WHERE id=?", (job_id,))
+    if row is None:
+        raise ValueError(f"unknown job {job_id}")
+    if row["backend"] != "modal":
+        raise ValueError("only Modal jobs can be reattached; start a new run instead")
+    if row["status"] not in ("failed", "timeout"):
+        raise ValueError(f"{job_id} is {row['status']}; only a failed job can be resumed")
+    other = active_job(store)
+    if other is not None:
+        raise ValueError(f"{other['id']} is still running; wait for it to finish first")
+    jdir = data_dir / "jobs" / job_id
+    remote = row["remote_id"] or next((r["remote_id"] for r in reversed(read_status(jdir)) if r.get("remote_id")), None)
+    if not remote:
+        raise ValueError("that job never reached Modal, so there is nothing to reattach to; start a new run")
+    params = json.loads((jdir / "job.json").read_text(encoding="utf-8"))
+    params["remote_id"] = remote
+    (jdir / "job.json").write_text(json.dumps(params), encoding="utf-8")
+    (jdir / "cancel").unlink(missing_ok=True)
+    with (jdir / "status.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"t": time.time(), "state": "starting", "progress": 0.05,
+                             "message": f"reattaching to Modal run {remote}", "remote_id": remote}) + "\n")
+    with store.tx() as c:
+        c.execute("UPDATE jobs SET status='starting', message=?, ended_at=NULL, error=NULL, remote_id=? WHERE id=?",
+                  (f"reattaching to Modal run {remote}", remote, job_id))
+    _spawn(data_dir, jdir, secrets or {}, dry=False)
+    return remote
+
+
 def cancel(data_dir: Path, job_id: str) -> None:
     jdir = data_dir / "jobs" / job_id
     if jdir.exists():

@@ -95,6 +95,17 @@ def run_local(job: Job) -> int:
     return 0
 
 
+def is_transient(exc: BaseException) -> bool:
+    """A dropped or slow connection, as opposed to the job itself failing."""
+    if isinstance(exc, (ConnectionError, TimeoutError)):
+        return True
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    return any(k in name for k in ("connection", "deadline", "unavailable", "timeout")) or \
+        any(k in text for k in ("deadline exceeded", "connection reset", "connection refused", "unavailable",
+                                "temporarily", "timed out"))
+
+
 def run_modal(job: Job) -> int:
     p = job.params
     os.environ["TIRONIAN_GPU"] = str(p.get("gpu", "L4"))
@@ -121,6 +132,9 @@ def run_modal(job: Job) -> int:
             job.emit("starting", 0.05, "job accepted by Modal", remote_id=remote_id)
         call = modal.FunctionCall.from_id(remote_id)
         last = None
+        # The GPU job keeps running on Modal whatever happens to this connection, so a network
+        # blip while checking on it is not a failure. Keep trying for up to ten minutes.
+        blip_since: float | None = None
         while True:
             if job.cancelled:
                 try:
@@ -129,18 +143,31 @@ def run_modal(job: Job) -> int:
                     job.emit("cancelled", 1.0, "cancelled; the GPU container was stopped")
                 return 1
             try:
-                result = call.get(timeout=0)
-                break
-            except TimeoutError:
-                pass
-            except modal.exception.TimeoutError:  # type: ignore[attr-defined]
-                pass
-            rec = modal_app.progress_dict.get(job_id)
+                try:
+                    result = call.get(timeout=0)
+                    break
+                except TimeoutError:
+                    pass
+                except modal.exception.TimeoutError:  # type: ignore[attr-defined]
+                    pass
+                rec = modal_app.progress_dict.get(job_id)
+                blip_since = None
+            except Exception as exc:  # Modal and grpc wrap network errors in their own types
+                if not is_transient(exc):
+                    raise
+                rec = None
+                if blip_since is None:
+                    blip_since = time.time()
+                    job.emit(last.get("state", "training") if last else "training",
+                             float(last.get("progress", 0.05)) if last else 0.05,
+                             "connection to Modal dropped; still waiting for the job")
+                elif time.time() - blip_since > 600:
+                    raise
             if rec and rec != last and rec.get("state") not in ("failed",):
                 job.emit(rec.get("state", "training"), float(rec.get("progress", 0)), rec.get("message", ""),
                          **{k: v for k, v in rec.items() if k in ("step", "max_steps", "loss")})
                 last = rec
-            time.sleep(5)
+            time.sleep(5 if blip_since is None else 15)
         job.emit("downloading", 0.96, "downloading your student model")
         tmp = job.dir / "student.gguf.part"
         with tmp.open("wb") as fh:

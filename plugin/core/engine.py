@@ -298,7 +298,10 @@ class Engine:
     def on_session_delete(self, **kw: Any) -> None:
         sid = str(kw.get("session_id") or "")
         if sid:
-            self.store.purge_session(sid)
+            # Deleting a chat in Hermes forgets it exactly, including from any student trained on it.
+            from .pipeline import forget_session
+            forget_session(self.store, sid)
+            self.invalidate()
             self._session_turn.pop(sid, None)
 
     def on_reaction(self, session_id: str, value: int) -> None:
@@ -343,6 +346,16 @@ class Engine:
         with self.store.tx() as c:
             c.execute("UPDATE turns SET score=?, label=?, grade_json=? WHERE id=?",
                       (g.score, g.label, json.dumps({"reasons": g.reasons, "hard": g.hard_negative}), turn_id))
+        if g.hard_negative:
+            # You corrected or refused a turn the student took part in: one is enough to take the
+            # family away from it until it has earned your trust again in shadow mode.
+            r = self.store.one("SELECT r.family_id, f.status FROM routes r JOIN families f ON f.id=r.family_id "
+                               "WHERE r.turn_id=? AND r.outcome='served' LIMIT 1", (turn_id,))
+            if r and r["status"] == "live":
+                bad = [x for x in g.reasons if any(k in x for k in ("corrected", "repeated", "denied", "failed",
+                                                                     "interrupted", "reaction_down", "explicit"))]
+                why = ", ".join(bad[:2]).replace("_", " ") or "a hard negative"
+                self.set_family_status(r["family_id"], "shadow", reason=f"you corrected a student answer ({why})")
 
     # Routing table
     def promoted(self, *, refresh: bool = False) -> list[PromotedFamily]:

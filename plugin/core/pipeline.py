@@ -535,6 +535,31 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     return sc
 
 
+def forget_session(store: Store, session_id: str) -> dict[str, Any]:
+    """Forget a session exactly: delete everything recorded from it, and take any student that
+    learned from it off duty until it is retrained without it.
+
+    A model can't unlearn one conversation, so the honest way to forget is to stop using every
+    student whose training set contained it. The next training run won't see the session, because
+    its data is gone.
+    """
+    tainted = store.q(
+        "SELECT DISTINCT s.id AS student, s.family_id FROM dataset_items i "
+        "JOIN decisions d ON d.id=i.decision_id JOIN turns t ON t.id=d.turn_id "
+        "JOIN jobs j ON j.dataset_id=i.dataset_id JOIN students s ON s.job_id=j.id "
+        "WHERE t.session_id=? AND i.split='train'", (session_id,))
+    removed = store.purge_session(session_id)
+    affected = []
+    with store.tx() as c:
+        for r in tainted:
+            c.execute("INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                      (f"forgotten_in:{r['student']}", session_id))
+            moved = c.execute("UPDATE families SET status='evaluated', updated_at=? WHERE id=? AND student_id=? "
+                              "AND status IN ('shadow','live')", (time.time(), r["family_id"], r["student"])).rowcount
+            affected.append({"student": r["student"], "family": r["family_id"], "stopped": bool(moved)})
+    return {"rows": removed, "students": affected}
+
+
 def shadow_ready(store: Store, family_id: str, *, min_n: int = 20, threshold: float = 0.85) -> tuple[bool, str]:
     # Only samples since the family last changed status: a student sent back to shadow for
     # drifting has to earn its way back with new evidence, not old agreements.

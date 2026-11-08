@@ -324,6 +324,19 @@ def test_excluded_session_not_captured(app_factory):
     assert app.store.scalar("SELECT COUNT(*) FROM decisions") == 0
 
 
+def test_one_correction_of_a_student_answer_sends_it_back_to_shadow(app_factory, llama):
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    llama.replies = [render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "du -sh ~/Downloads"}'}}])]
+    t = Teacher()
+    run_turn(app, "what's using disk space in ~/Downloads", t, turn="t1")
+    assert t.calls == 0    # the student took the first step
+    app.engine.post_llm_call(turn_id="t1")
+    run_turn(app, "no, that's wrong", Teacher(), turn="t2")
+    assert app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "shadow"
+    assert "corrected" in (app.store.meta_get("status_reason:fdisk") or "")
+
+
 def test_grading_from_followup_and_delete_purges(app_factory):
     app = app_factory()
     run_turn(app, "list files", Teacher(), turn="t1")

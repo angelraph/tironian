@@ -150,6 +150,36 @@ def test_trained_family_keeps_its_id(app_factory):
     assert app.store.one("SELECT id FROM families WHERE id='ftiny'") is None
 
 
+def test_forgetting_a_session_takes_its_student_off_duty(app_factory, llama, tmp_path):
+    app = app_factory(student_endpoint=llama.url, min_eval_n=5)
+    make_state_db(app.state_db)
+    pipeline.import_history(app.store, app.state_db, app.redactor)
+    disk = max(pipeline.rebuild_families(app.store, app.settings()), key=lambda f: f["n_turns"])
+    app.store.upsert("toolsets", {"hash": "h1", "tools_json": json.dumps(TOOLS)}, key="hash")
+    prep = app.prepare_training(disk["id"])
+    jid = app.start_training(disk["id"], prep["dataset_id"], backend="dry-run")
+    for _ in range(200):
+        if app.poll_job(jid)["status"] in jobs.TERMINAL:
+            break
+        time.sleep(0.1)
+    student = app.store.one("SELECT * FROM students WHERE job_id=?", (jid,))
+    with app.store.tx() as c:
+        c.execute("UPDATE families SET status='live', student_id=? WHERE id=?", (student["id"], disk["id"]))
+    ds = app.store.one("SELECT * FROM datasets WHERE id=?", (prep["dataset_id"],))
+    did = json.loads(Path(ds["path"], "train.jsonl").read_text(encoding="utf-8").splitlines()[0])["decision_id"]
+    sid = app.store.scalar("SELECT t.session_id FROM decisions d JOIN turns t ON t.id=d.turn_id WHERE d.id=?", (did,))
+
+    msg = commands.forget_text(app, sid)
+    assert "learned from it" in msg
+    assert app.store.scalar("SELECT COUNT(*) FROM turns WHERE session_id=?", (sid,)) == 0
+    assert app.store.scalar("SELECT status FROM families WHERE id=?", (disk["id"],)) == "evaluated"
+    assert app.store.meta_get(f"forgotten_in:{student['id']}") == sid
+    # A session the student never trained on leaves it alone.
+    held = json.loads(Path(ds["path"], "heldout.jsonl").read_text(encoding="utf-8").splitlines()[0])["decision_id"]
+    hsid = app.store.scalar("SELECT t.session_id FROM decisions d JOIN turns t ON t.id=d.turn_id WHERE d.id=?", (held,))
+    assert "No trained student learned from it" in commands.forget_text(app, hsid)
+
+
 def test_bad_student_fails_gate(app_factory, llama, tmp_path):
     app = app_factory(student_endpoint=llama.url, min_eval_n=5)
     make_state_db(app.state_db)

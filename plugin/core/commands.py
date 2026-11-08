@@ -16,6 +16,7 @@ HELP = """Tironian: your own small model, learned from your own work.
 /tironian good [note]     this answer was right (teaches Tironian what to learn)
 /tironian bad [note]      this answer was wrong (never trained on; demotes a student)
 /tironian off | on        stop / resume learning from this conversation
+/tironian forget          forget this conversation exactly, including from any student trained on it
 /tironian train <family>  build the dataset and show the cost before training
 /tironian shadow|promote|demote <family>
 /tironian why             why the last request did or didn't go to your student"""
@@ -162,6 +163,12 @@ def handle(app: App, raw: str, *, session_id: str = "", platform: str = "", ask:
             return "Tironian is learning from this conversation again."
         if cmd == "why":
             return why_text(app, session_id)
+        if cmd == "forget":
+            target = arg or session_id
+            if not target:
+                return "Run this inside the conversation to forget, or give its session id."
+            app.engine.exclude_session(target, "forgotten")
+            return forget_text(app, target)
         if cmd in ("shadow", "promote", "demote"):
             return set_status(app, cmd, arg)
         if cmd == "train":
@@ -169,6 +176,18 @@ def handle(app: App, raw: str, *, session_id: str = "", platform: str = "", ask:
         return HELP
     except Exception as exc:  # a slash command must answer, not crash
         return f"Tironian: {exc}"
+
+
+def forget_text(app: App, session_id: str) -> str:
+    res = pipeline.forget_session(app.store, session_id)
+    app.engine.invalidate()
+    out = [f"Forgot session {session_id}: {res['rows']} recorded rows deleted."]
+    for s in res["students"]:
+        out.append(f"  {s['student']} learned from it, so it {'has stopped answering' if s['stopped'] else 'is off duty'} "
+                   f"until you retrain {s['family']} (the new run won't see this session).")
+    if not res["students"]:
+        out.append("  No trained student learned from it.")
+    return "\n".join(out)
 
 
 def set_status(app: App, cmd: str, family_id: str) -> str:

@@ -136,6 +136,8 @@ def run(args: Any) -> int:
     elif cmd == "export":
         ds = pipeline.build_dataset(app.store, s, args.family, args.out)
         _p(f"Wrote {ds.n_train + ds.n_heldout} examples to {ds.train_path.parent} (sha256 {ds.sha256[:12]}…)")
+    elif cmd == "forget":
+        _p(commands.forget_text(app, args.session))
     elif cmd == "purge":
         if not args.yes:
             _p("This deletes every captured turn, dataset row and route record. Re-run with --yes.")

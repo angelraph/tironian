@@ -47,6 +47,8 @@ def setup(sub: Any) -> None:
     ex = sp.add_parser("export", help="Copy a family's dataset to a folder")
     ex.add_argument("family")
     ex.add_argument("--out", type=Path, required=True)
+    fg = sp.add_parser("forget", help="Forget one session exactly: its data, and any student that learned from it")
+    fg.add_argument("session")
     pg = sp.add_parser("purge", help="Delete everything Tironian has captured")
     pg.add_argument("--yes", action="store_true")
     sub.set_defaults(func=run)

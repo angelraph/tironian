@@ -1,5 +1,7 @@
 # Tironian
 
+[![tests](https://github.com/angelraph/tironian/actions/workflows/ci.yml/badge.svg)](https://github.com/angelraph/tironian/actions/workflows/ci.yml)
+
 A Hermes Agent plugin that trains a small local model on the work you already do with Hermes,
 tests it against your own past sessions, and lets it take over the routine requests it has
 proven it can handle.

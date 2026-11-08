@@ -1,0 +1,22 @@
+{
+  "voice": "en-US-AndrewNeural",
+  "rate": "+4%",
+  "scenes": [
+    {"id": "intro", "pad": 0.6,
+     "text": "This is Tironian, a plugin for Hermes Agent. It turns the work you already do with Hermes into a small model of your own."},
+    {"id": "pipeline", "pad": 0.5,
+     "text": "Most of what we ask an agent is the same few jobs, and each one goes to a big cloud model. Tironian records every step Hermes takes, masks secrets, grades how each turn went, and groups repeated requests into task families."},
+    {"id": "report", "pad": 0.4,
+     "text": "Your first report comes from the history you already have. No keys, no GPU, and nothing leaves your machine."},
+    {"id": "train", "pad": 0.4,
+     "text": "Pick a family, and one command fine-tunes a Qwen3 1.7B model on Modal, in your own account. About ten minutes, for about fifteen cents."},
+    {"id": "gate", "pad": 0.5,
+     "text": "Then it has to prove itself on sessions it has never seen, and a blind judge decides whenever its answer differs from yours. An early model got 7 out of 31, and the gate turned it down. This one wrote the right first command 51 times out of 51. So it takes that step, and your main model still writes the answer."},
+    {"id": "shadow", "pad": 0.4,
+     "text": "Next comes shadow mode, where it answers real requests quietly in the background. It agreed 18 times out of 20, so it went live."},
+    {"id": "live", "pad": 0.5,
+     "text": "Now those requests run on your own machine. Every answer is checked, and if anything is off, your usual model takes over. You never see the difference."},
+    {"id": "outro", "pad": 1.6,
+     "text": "Tironian. Your own model, proven on your own work."}
+  ]
+}

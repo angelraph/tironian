@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tironian demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000; --panel: #0c0b12; --panel-2: #12101b; --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+    --text: #eeebf6; --muted: #9d98b1; --faint: #6c6781;
+    --accent: #8b5cf6; --accent-2: #a78bfa; --accent-3: #c4b5fd; --glow: rgba(139,92,246,.35);
+    --ok: #5eead4; --warn: #fbbf24; --bad: #f87171;
+    --mono: "JetBrains Mono", Consolas, monospace; --sans: "Inter", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+  .grid { position: absolute; inset: -80px; background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 64px 64px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+  .glow { position: absolute; width: 1400px; height: 1000px; left: 260px; top: 40px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(139,92,246,.22), transparent); filter: blur(20px); }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  /* chrome */
+  #brand { position: absolute; left: 64px; top: 48px; display: flex; align-items: center; gap: 14px; opacity: 0; }
+  #brand img { width: 44px; height: 44px; }
+  #brand span { font-weight: 700; font-size: 26px; letter-spacing: .2px; }
+  #steps { position: absolute; right: 64px; top: 54px; display: flex; gap: 10px; opacity: 0; }
+  #steps .st { font-size: 17px; font-weight: 600; color: var(--faint); padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(12,11,18,.6); }
+  #steps .st.on { color: #fff; border-color: rgba(167,139,250,.6); background: rgba(139,92,246,.22); box-shadow: 0 0 24px rgba(139,92,246,.35); }
+  #cap { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); max-width: 1500px; text-align: center;
+    font-size: 34px; font-weight: 500; line-height: 1.3; color: #fff; padding: 14px 30px; border-radius: 14px;
+    background: rgba(8,7,14,.72); border: 1px solid var(--line); backdrop-filter: blur(6px); }
+  #cap:empty { display: none; }
+
+  h2.title { font-size: 64px; font-weight: 800; letter-spacing: -1.5px; }
+  .eyebrow { font-family: var(--mono); font-size: 20px; letter-spacing: 4px; text-transform: uppercase; color: var(--accent-2); }
+  .soft { color: var(--muted); }
+  .chip { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; padding: 12px 20px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: rgba(18,16,27,.85); }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+
+  /* terminal */
+  .term { position: absolute; background: linear-gradient(180deg, #0f0d17, #0a0910); border: 1px solid var(--line-2); border-radius: 18px;
+    box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(139,92,246,.08), 0 0 80px rgba(139,92,246,.12); overflow: hidden; }
+  .term .bar { height: 46px; display: flex; align-items: center; gap: 9px; padding: 0 18px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.02); }
+  .term .bar i { width: 13px; height: 13px; border-radius: 50%; background: #2a2735; display: block; }
+  .term .bar b { margin-left: 14px; font: 500 16px var(--mono); color: var(--faint); }
+  .term pre { font: 400 24px/1.6 var(--mono); padding: 26px 30px; color: #d9d5e6; white-space: pre; }
+  .term .pr { color: var(--accent-2); }
+  .term .cmd { color: #fff; }
+  .term .ok { color: var(--ok); }
+  .term .warn { color: var(--warn); }
+  .term .mu { color: var(--faint); }
+  .term .hl { color: #fff; font-weight: 700; }
+  .caret { display: inline-block; width: 12px; height: 26px; background: var(--accent-2); vertical-align: -4px; }
+
+  .card { position: absolute; background: linear-gradient(180deg, rgba(20,18,30,.92), rgba(12,11,18,.92)); border: 1px solid var(--line-2);
+    border-radius: 20px; box-shadow: 0 30px 90px rgba(0,0,0,.5); }
+  .big { font-size: 96px; font-weight: 800; letter-spacing: -3px; font-variant-numeric: tabular-nums; }
+  .stamp { display: inline-block; font: 700 24px var(--mono); letter-spacing: 2px; padding: 10px 18px; border-radius: 10px; }
+  .stamp.no { color: var(--bad); border: 2px solid rgba(248,113,113,.7); background: rgba(248,113,113,.08); }
+  .stamp.yes { color: var(--ok); border: 2px solid rgba(94,234,212,.7); background: rgba(94,234,212,.08); }
+
+  /* pipeline */
+  .req { position: absolute; left: 160px; width: 620px; padding: 20px 26px; font-size: 26px; border-radius: 16px;
+    background: rgba(18,16,27,.9); border: 1px solid var(--line-2); }
+  .req small { display: block; font: 500 15px var(--mono); color: var(--faint); margin-bottom: 6px; letter-spacing: 1px; }
+  .cloud { position: absolute; left: 1220px; top: 330px; width: 520px; height: 300px; border-radius: 24px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; background: rgba(18,16,27,.9); border: 1px solid var(--line-2); }
+  .cloud .t { font-size: 36px; font-weight: 700; }
+  .cloud .s { font-size: 22px; color: var(--muted); }
+  .flow { position: absolute; height: 3px; left: 790px; width: 420px; transform-origin: left center;
+    background: linear-gradient(90deg, rgba(167,139,250,.0), rgba(167,139,250,.9)); }
+  .node { position: absolute; top: 300px; width: 330px; height: 250px; border-radius: 22px; padding: 30px; display: flex; flex-direction: column; gap: 16px;
+    background: rgba(18,16,27,.9); border: 1px solid var(--line-2); }
+  .node .n { font: 700 18px var(--mono); color: var(--accent-2); letter-spacing: 2px; }
+  .node .h { font-size: 34px; font-weight: 700; }
+  .node .d { font-size: 21px; color: var(--muted); line-height: 1.4; }
+  .node.lit { border-color: rgba(167,139,250,.65); box-shadow: 0 0 50px rgba(139,92,246,.3); }
+  .fam { position: absolute; top: 640px; width: 460px; padding: 26px 30px; border-radius: 20px; background: rgba(139,92,246,.10); border: 1px solid rgba(167,139,250,.45); }
+  .fam .h { font-size: 30px; font-weight: 700; }
+  .fam .d { font: 500 20px var(--mono); color: var(--accent-3); margin-top: 8px; }
+
+  /* gate */
+  .bar { position: relative; height: 18px; border-radius: 9px; background: rgba(255,255,255,.06); }
+  .bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 9px; }
+  .bar .th { position: absolute; top: -12px; bottom: -12px; width: 3px; background: #fff; border-radius: 2px; }
+  .bar .thl { position: absolute; top: -44px; transform: translateX(-50%); font: 600 17px var(--mono); color: #fff; white-space: nowrap; }
+  .step { position: absolute; top: 760px; height: 130px; width: 330px; border-radius: 18px; display: flex; flex-direction: column; justify-content: center; padding: 0 26px;
+    background: rgba(18,16,27,.95); border: 1px solid var(--line-2); }
+  .step .k { font: 600 16px var(--mono); letter-spacing: 2px; color: var(--faint); text-transform: uppercase; }
+  .step .v { font-size: 25px; font-weight: 600; margin-top: 8px; }
+  .step.me { border-color: rgba(167,139,250,.65); background: rgba(139,92,246,.14); }
+  .arrow { position: absolute; top: 822px; height: 3px; width: 70px; background: rgba(167,139,250,.8); }
+  .arrow::after { content: ""; position: absolute; right: -2px; top: -6px; border-left: 12px solid rgba(167,139,250,.8); border-top: 7.5px solid transparent; border-bottom: 7.5px solid transparent; }
+
+  /* shadow */
+  .dots { position: absolute; left: 260px; top: 380px; display: grid; grid-template-columns: repeat(10, 92px); gap: 22px; }
+  .dotx { width: 92px; height: 92px; border-radius: 22px; border: 1px solid var(--line-2); background: rgba(255,255,255,.03);
+    display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 700; }
+  .dotx.y { background: rgba(94,234,212,.14); border-color: rgba(94,234,212,.6); color: var(--ok); }
+  .dotx.n { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.6); color: var(--warn); }
+  .pill { display: inline-block; font: 700 26px var(--mono); letter-spacing: 3px; padding: 12px 26px; border-radius: 999px; }
+
+  .check { display: flex; align-items: center; gap: 18px; font-size: 28px; font-weight: 500; }
+  .check .c { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800;
+    color: var(--ok); background: rgba(94,234,212,.12); border: 1px solid rgba(94,234,212,.5); }
+  .route { font: 600 22px var(--mono); padding: 12px 18px; border-radius: 12px; display: inline-block; }
+  .route.s { color: var(--ok); background: rgba(94,234,212,.10); border: 1px solid rgba(94,234,212,.45); }
+  .route.f { color: var(--accent-3); background: rgba(139,92,246,.12); border: 1px solid rgba(167,139,250,.45); }
+  .foot { position: absolute; font: 500 17px var(--mono); color: var(--faint); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="grid"></div>
+  <div class="glow" id="glow"></div>
+
+  <!-- 1. intro -->
+  <section class="scene center" id="s-intro">
+    <div style="position:relative; width:300px; height:300px;">
+      <div id="ring" style="position:absolute; inset:-60px; border-radius:50%; background: radial-gradient(closest-side, rgba(139,92,246,.45), transparent);"></div>
+      <img id="mark" src="../web/assets/mark-512.png" style="position:relative; width:300px; height:300px;">
+    </div>
+    <img id="word" src="../web/assets/wordmark.png" style="width:620px; margin-top:34px;">
+    <div id="tag" style="margin-top:40px; font-size:40px; font-weight:600; letter-spacing:-.5px;">Your own small model, learned from your own Hermes work.</div>
+    <div id="tag2" class="eyebrow" style="margin-top:22px;">A plugin for Hermes Agent</div>
+  </section>
+
+  <!-- 2. pipeline -->
+  <section class="scene" id="s-pipe">
+    <div id="pa" class="scene" style="opacity:1">
+      <div class="eyebrow" style="position:absolute; left:160px; top:190px;">Today</div>
+      <h2 class="title" style="position:absolute; left:160px; top:226px;">The same few jobs, every day</h2>
+      <div class="req" id="r1" style="top:380px;"><small>REQUEST</small>How many .pdf files are in my Downloads?</div>
+      <div class="req" id="r2" style="top:520px;"><small>REQUEST</small>Count the .zip files in Desktop.</div>
+      <div class="req" id="r3" style="top:660px;"><small>REQUEST</small>How many .png files are in Pictures?</div>
+      <div class="flow" id="f1" style="top:430px; transform: rotate(5deg);"></div>
+      <div class="flow" id="f2" style="top:570px;"></div>
+      <div class="flow" id="f3" style="top:710px; transform: rotate(-5deg);"></div>
+      <div class="cloud" id="cloud"><div style="font-size:54px;">☁</div><div class="t">A big cloud model</div><div class="s">every time · paid per call · your data leaves</div></div>
+    </div>
+    <div id="pb" class="scene">
+      <div class="eyebrow" style="position:absolute; left:160px; top:150px;">What Tironian does</div>
+      <h2 class="title" style="position:absolute; left:160px; top:186px;">From your sessions to task families</h2>
+      <div class="node" id="n1" style="left:160px;"><div class="n">01</div><div class="h">Record</div><div class="d">every step Hermes takes, with its tool calls and results</div></div>
+      <div class="node" id="n2" style="left:560px;"><div class="n">02</div><div class="h">Mask secrets</div><div class="d">keys, tokens, emails and your username, before anything is stored</div></div>
+      <div class="node" id="n3" style="left:960px;"><div class="n">03</div><div class="h">Grade</div><div class="d">from what happened: errors, corrections, retries, approvals</div></div>
+      <div class="node" id="n4" style="left:1360px;"><div class="n">04</div><div class="h">Group</div><div class="d">repeated requests into task families</div></div>
+      <div class="fam" id="fa1" style="left:160px;"><div class="h">count files</div><div class="d">107 requests · 92 good</div></div>
+      <div class="fam" id="fa2" style="left:730px;"><div class="h">largest files</div><div class="d">38 requests · 23 good</div></div>
+      <div class="fam" id="fa3" style="left:1300px;"><div class="h">recent files</div><div class="d">31 requests · 29 good</div></div>
+    </div>
+  </section>
+
+  <!-- 3. report -->
+  <section class="scene" id="s-report">
+    <div class="term" id="t-rep" style="left:120px; top:200px; width:1180px; height:600px;">
+      <div class="bar"><i></i><i></i><i></i><b>terminal</b></div>
+      <pre id="rep"></pre>
+    </div>
+    <div id="rb" style="position:absolute; left:1360px; top:280px; display:flex; flex-direction:column; gap:22px;">
+      <div class="chip" id="b1"><span class="dot"></span>No keys</div>
+      <div class="chip" id="b2"><span class="dot"></span>No GPU</div>
+      <div class="chip" id="b3"><span class="dot"></span>Nothing leaves your machine</div>
+      <div class="chip" id="b4"><span class="dot"></span>Reads history read only</div>
+    </div>
+    <div class="foot" style="left:120px; top:830px;">Real output from my test machine</div>
+  </section>
+
+  <!-- 4. train -->
+  <section class="scene" id="s-train">
+    <div class="term" id="t-train" style="left:120px; top:190px; width:1100px; height:300px;">
+      <div class="bar"><i></i><i></i><i></i><b>terminal</b></div>
+      <pre id="trn"></pre>
+    </div>
+    <div class="card" id="prog" style="left:120px; top:530px; width:1100px; height:300px; padding:34px 40px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <div class="eyebrow">Training on Modal · L4 GPU</div>
+        <div style="font:600 20px var(--mono); color:var(--faint);">sped up</div>
+      </div>
+      <div id="pmsg" style="font:500 30px var(--mono); margin-top:26px; color:#fff; height:40px;"></div>
+      <div class="bar" style="margin-top:34px; height:16px;"><div class="fill" id="pfill" style="left:0; width:0%; background: linear-gradient(90deg, var(--accent), var(--accent-3)); box-shadow: 0 0 20px rgba(139,92,246,.6);"></div></div>
+      <svg id="loss" width="1020" height="70" style="margin-top:24px; overflow:visible"></svg>
+    </div>
+    <div id="spec" style="position:absolute; left:1280px; top:200px; display:flex; flex-direction:column; gap:20px;">
+      <div class="chip" id="c1">Qwen3 1.7B</div>
+      <div class="chip" id="c2">LoRA fine-tune</div>
+      <div class="chip" id="c3">Q4_K_M GGUF · 1.11 GB</div>
+      <div class="chip" id="c4">Your own Modal account</div>
+      <div class="chip" id="c5">≈ $0.14 · hard cap $0.60</div>
+    </div>
+  </section>
+
+  <!-- 5. gate -->
+  <section class="scene" id="s-gate">
+    <div class="eyebrow" id="geye" style="position:absolute; left:120px; top:140px;">The gate</div>
+    <h2 class="title" id="gtitle" style="position:absolute; left:120px; top:176px;">Proven on sessions it never saw</h2>
+    <div id="gchips" style="position:absolute; left:120px; top:280px; display:flex; gap:16px;">
+      <div class="chip">Held-out sessions</div><div class="chip">Blind judge</div><div class="chip">95% lower bound ≥ 85%</div>
+    </div>
+    <div class="card" id="gv2" style="left:120px; top:380px; width:560px; height:330px; padding:34px 40px;">
+      <div class="eyebrow" style="color:var(--faint)">Early model · v2</div>
+      <div style="display:flex; align-items:baseline; gap:16px; margin-top:16px;"><div class="big">7</div><div style="font-size:40px; color:var(--muted)">/ 31 passed</div></div>
+      <div style="font:500 22px var(--mono); color:var(--muted); margin-top:4px;">lower bound 11%</div>
+      <div class="stamp no" id="gno" style="margin-top:26px;">GATE NOT PASSED</div>
+    </div>
+    <div class="card" id="gv4" style="left:740px; top:380px; width:1060px; height:330px; padding:34px 44px;">
+      <div class="eyebrow">Current model · v4</div>
+      <div style="display:flex; align-items:baseline; gap:16px; margin-top:16px;">
+        <div class="big" id="g51">0</div><div style="font-size:40px; color:var(--muted)">/ 51 first steps</div>
+        <div class="stamp yes" id="gyes" style="margin-left:auto; align-self:center;">PASSES</div>
+      </div>
+      <div class="bar" style="margin-top:56px;">
+        <div class="fill" id="gci" style="left:93%; width:7%; background: var(--ok); box-shadow: 0 0 18px rgba(94,234,212,.7);"></div>
+        <div class="th" style="left:85%;"></div><div class="thl" style="left:85%;">85% needed</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font:500 20px var(--mono); color:var(--muted); margin-top:16px;">
+        <span>0%</span><span id="glb" style="color:var(--ok)">lower bound 93%</span>
+      </div>
+    </div>
+    <div id="gflow">
+      <div class="step" style="left:120px;"><div class="k">Your request</div><div class="v">How many .pdf files…</div></div>
+      <div class="arrow" style="left:460px;"></div>
+      <div class="step me" style="left:540px;"><div class="k">Your student</div><div class="v">writes the command</div></div>
+      <div class="arrow" style="left:880px;"></div>
+      <div class="step" style="left:960px;"><div class="k">Hermes</div><div class="v">runs it</div></div>
+      <div class="arrow" style="left:1300px;"></div>
+      <div class="step" style="left:1380px; width:420px;"><div class="k">Your main model</div><div class="v">writes the answer</div></div>
+    </div>
+  </section>
+
+  <!-- 6. shadow -->
+  <section class="scene" id="s-shadow">
+    <div class="eyebrow" style="position:absolute; left:260px; top:150px;">Shadow mode</div>
+    <h2 class="title" style="position:absolute; left:260px; top:186px;">Real requests, compared in the background</h2>
+    <div class="dots" id="dots"></div>
+    <div style="position:absolute; left:260px; top:640px; display:flex; align-items:center; gap:34px;">
+      <div class="big" id="sagree" style="font-size:80px;">0 / 20</div>
+      <div style="font-size:32px; color:var(--muted)">agreed with your model</div>
+    </div>
+    <div style="position:absolute; left:260px; top:800px; display:flex; align-items:center; gap:24px;">
+      <span class="pill" id="pshadow" style="color:var(--warn); border:2px solid rgba(251,191,36,.6); background:rgba(251,191,36,.08);">SHADOW</span>
+      <span style="font-size:40px; color:var(--faint);">→</span>
+      <span class="pill" id="plive" style="color:var(--ok); border:2px solid rgba(94,234,212,.7); background:rgba(94,234,212,.1); opacity:.25;">LIVE</span>
+    </div>
+  </section>
+
+  <!-- 7. live -->
+  <section class="scene" id="s-live">
+    <div class="term" id="t-live" style="left:120px; top:160px; width:1160px; height:560px;">
+      <div class="bar"><i></i><i></i><i></i><b>hermes</b></div>
+      <pre id="lv" style="font-size:21px;"></pre>
+    </div>
+    <div id="lroute" style="position:absolute; left:120px; top:750px;"><span class="route s">route: live · served by your student · 6.2 s</span></div>
+    <div id="lchecks" style="position:absolute; left:1350px; top:200px; display:flex; flex-direction:column; gap:26px;">
+      <div class="eyebrow">Every answer is checked</div>
+      <div class="check" id="k1"><span class="c">✓</span>Parses cleanly</div>
+      <div class="check" id="k2"><span class="c">✓</span>Uses only offered tools</div>
+      <div class="check" id="k3"><span class="c">✓</span>Arguments fit the schema</div>
+    </div>
+    <div class="card" id="lfb" style="left:1350px; top:560px; width:460px; padding:28px 30px;">
+      <div class="eyebrow" style="color:var(--accent-3)">If anything is off</div>
+      <div style="font-size:26px; margin-top:14px; line-height:1.4;">Student unreachable. Your usual model answered instead, no error shown.</div>
+      <div style="margin-top:18px;"><span class="route f">live · fallback · 2.0 s</span></div>
+    </div>
+  </section>
+
+  <!-- 8. outro -->
+  <section class="scene center" id="s-outro">
+    <img src="../web/assets/mark-512.png" id="omark" style="width:200px; height:200px;">
+    <img src="../web/assets/wordmark.png" id="oword" style="width:520px; margin-top:24px;">
+    <div id="otag" style="margin-top:36px; font-size:44px; font-weight:700; letter-spacing:-.5px;">Your own model, proven on your own work.</div>
+    <div id="ocmd" style="margin-top:44px; font:500 30px var(--mono); padding:20px 34px; border-radius:16px; background:var(--panel-2); border:1px solid rgba(167,139,250,.45);">
+      <span style="color:var(--accent-2)">$</span> hermes plugins install angelraph/tironian</div>
+    <div id="olinks" style="margin-top:30px; font:500 24px var(--mono); color:var(--muted);">tironian.vercel.app · github.com/angelraph/tironian</div>
+  </section>
+
+  <div id="brand"><img src="../web/assets/mark-180.png"><span>Tironian</span></div>
+  <div id="steps"><div class="st" data-k="pipe">Learn</div><div class="st" data-k="train">Train</div><div class="st" data-k="gate">Prove</div><div class="st" data-k="shadow">Shadow</div><div class="st" data-k="live">Live</div></div>
+  <div id="cap"></div>
+</div>
+
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script>
+const TL = window.TIMELINE;
+const SC = Object.fromEntries(TL.scenes.map(s => [s.id, s]));
+const norm = w => w.toLowerCase().replace(/[^a-z0-9.]/g, "");
+// Absolute time of the nth spoken word in a scene (falls back to the scene start).
+function W(id, word, nth = 1) {
+  const s = SC[id]; let k = 0;
+  for (const b of s.words) if (norm(b.w) === norm(word) && ++k === nth) return s.start + b.t;
+  console.warn("word not found", id, word); return s.start;
+}
+const S = id => SC[id].start, E = id => SC[id].start + SC[id].dur;
+const $ = q => document.querySelector(q);
+const tl = gsap.timeline({ paused: true });
+const ease = "power3.out";
+
+function scene(id, sel) {
+  tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: .45, ease: "power2.out" }, S(id));
+  tl.to(sel, { opacity: 0, duration: .35, ease: "power2.in" }, E(id) - .35);
+}
+
+// ---------- typed terminal helper: lines appear (commands type out) at given times
+function terminal(pre, lines) {
+  // lines: [{t, html, type?:true, plain?:text}]
+  pre.innerHTML = "";
+  const els = lines.map(l => { const d = document.createElement("div"); d.style.opacity = 0; d.innerHTML = l.html || "&nbsp;"; pre.appendChild(d); return d; });
+  lines.forEach((l, i) => {
+    const el = els[i];
+    if (l.type) {
+      const full = l.text; const span = el.querySelector(".cmd");
+      tl.set(el, { opacity: 1 }, l.t);
+      const o = { n: 0 };
+      tl.fromTo(o, { n: 0 }, { n: full.length, duration: Math.min(1.4, full.length * .035), ease: "none",
+        onUpdate: () => { span.textContent = full.slice(0, Math.round(o.n)); } }, l.t);
+    } else {
+      tl.fromTo(el, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: .25, ease }, l.t);
+    }
+  });
+}
+const P = '<span class="pr">❯</span> ';
+const cmdLine = (t, text) => ({ t, type: true, text, html: P + '<span class="cmd"></span>' });
+
+// ---------- chrome
+tl.to("#brand", { opacity: 1, duration: .5 }, S("pipeline"));
+tl.to("#steps", { opacity: 1, duration: .5 }, S("pipeline"));
+tl.to(["#brand", "#steps"], { opacity: 0, duration: .4 }, S("outro"));
+const stepOf = { pipeline: "pipe", report: "pipe", train: "train", gate: "gate", shadow: "shadow", live: "live" };
+gsap.ticker.lagSmoothing(0);
+function setStep(t) {
+  let cur = null; for (const s of TL.scenes) if (t >= s.start) cur = s.id;
+  document.querySelectorAll("#steps .st").forEach(e => e.classList.toggle("on", e.dataset.k === stepOf[cur]));
+}
+tl.fromTo("#glow", { x: -120, y: 30 }, { x: 140, y: -40, duration: TL.total, ease: "sine.inOut" }, 0);
+
+// ---------- 1. intro
+scene("intro", "#s-intro");
+tl.fromTo("#mark", { scale: .6, opacity: 0, rotate: -8 }, { scale: 1, opacity: 1, rotate: 0, duration: 1.2, ease: "back.out(1.4)" }, .15);
+tl.fromTo("#ring", { scale: .4, opacity: 0 }, { scale: 1.15, opacity: 1, duration: 1.6, ease }, .1);
+tl.to("#ring", { scale: 1, opacity: .7, duration: 3, ease: "sine.inOut" }, 1.7);
+tl.fromTo("#word", { y: 30, opacity: 0, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: .9, ease }, .9);
+tl.fromTo("#tag2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .6, ease }, W("intro", "plugin") - .1);
+tl.fromTo("#tag", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .7, ease }, W("intro", "turns") - .1);
+
+// ---------- 2. pipeline
+scene("pipeline", "#s-pipe");
+["#r1", "#r2", "#r3"].forEach((r, i) => tl.fromTo(r, { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: .5, ease }, S("pipeline") + .3 + i * .45));
+tl.fromTo("#cloud", { scale: .9, opacity: 0 }, { scale: 1, opacity: 1, duration: .6, ease }, W("pipeline", "each") - .2);
+["#f1", "#f2", "#f3"].forEach((f, i) => tl.fromTo(f, { scaleX: 0 }, { scaleX: 1, duration: .5, ease }, W("pipeline", "each") + i * .15));
+const tRec = W("pipeline", "Tironian");
+tl.to("#pa", { opacity: 0, duration: .4 }, tRec - .35);
+tl.fromTo("#pb", { opacity: 0 }, { opacity: 1, duration: .4 }, tRec - .05);
+[["#n1", "records"], ["#n2", "masks"], ["#n3", "grades"], ["#n4", "groups"]].forEach(([n, w]) => {
+  const t = W("pipeline", w);
+  tl.fromTo(n, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, t - .15);
+  tl.call(() => {}, [], t);
+  tl.fromTo(n, { borderColor: "rgba(255,255,255,.14)" }, { borderColor: "rgba(167,139,250,.65)", boxShadow: "0 0 50px rgba(139,92,246,.3)", duration: .3 }, t);
+});
+["#fa1", "#fa2", "#fa3"].forEach((f, i) => tl.fromTo(f, { y: 40, opacity: 0, scale: .96 }, { y: 0, opacity: 1, scale: 1, duration: .5, ease }, W("pipeline", "families") - .3 + i * .18));
+
+// ---------- 3. report (real output, Nov 7, before training)
+scene("report", "#s-report");
+const r0 = S("report") + .3;
+terminal($("#rep"), [
+  cmdLine(r0, "hermes tironian report"),
+  { t: r0 + 1.3, html: '<span class="hl">Your Tironian report</span> <span class="mu">·</span> 182 sessions <span class="mu">·</span> 182 requests' },
+  { t: r0 + 1.6, html: '<span class="ok">97%</span> of your requests are recurring tasks (176 requests).' },
+  { t: r0 + 1.8, html: "" },
+  { t: r0 + 1.9, html: '<span class="mu">Top task families:</span>' },
+  { t: r0 + 2.1, html: '  count           107 req · 92 good  <span class="ok">ready to train</span>' },
+  { t: r0 + 2.3, html: '  largest files    38 req · 23 good  <span class="warn">needs 2 more</span>' },
+  { t: r0 + 2.5, html: '  recent files     31 req · 29 good  <span class="ok">ready to train</span>' },
+]);
+[["#b1", "No"], ["#b2", "GPU"], ["#b3", "nothing"], ["#b4", "nothing"]].forEach(([b, w], i) =>
+  tl.fromTo(b, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: .45, ease }, W("report", w) - .1 + (i === 3 ? .5 : 0)));
+
+// ---------- 4. train (real job-5b5245c9cc log)
+scene("train", "#s-train");
+const t0 = S("train") + .25;
+terminal($("#trn"), [
+  cmdLine(t0, "hermes tironian train f8667670c --backend modal"),
+  { t: t0 + 1.6, html: 'f8667670c: 180 training / 93 held-out examples' },
+  { t: t0 + 1.9, html: 'Estimate: ~10 min, <span class="ok">~$0.14</span> on Modal L4; hard cap $0.60.' },
+  { t: t0 + 2.2, html: 'Started job-5b5245c9cc.' },
+]);
+tl.fromTo("#prog", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, t0 + 2.3);
+const msgs = [
+  [0.02, "uploading dataset to your Modal volume"], [0.04, "starting a L4 GPU container"], [0.05, "loading unsloth/Qwen3-1.7B"],
+  [0.05, "180 examples · 2 epochs"], [0.18, "step 8/46 · loss 1.221"], [0.34, "step 18/46 · loss 0.698"], [0.51, "step 28/46 · loss 0.486"],
+  [0.67, "step 38/46 · loss 0.783"], [0.73, "step 42/46 · loss 0.780"], [0.82, "merging and quantizing to Q4_K_M GGUF"],
+  [0.95, "tironian-f8667670c-v4.gguf · 1.11 GB"], [1.0, "student ready ✓"]];
+const pStart = t0 + 2.6, pEnd = E("train") - .7, pStep = (pEnd - pStart) / msgs.length;
+msgs.forEach(([p, m], i) => {
+  const t = pStart + i * pStep;
+  tl.call(() => { $("#pmsg").textContent = m; $("#pmsg").style.color = i === msgs.length - 1 ? "var(--ok)" : "#fff"; }, [], t);
+  tl.to("#pfill", { width: (p * 100) + "%", duration: pStep * .9, ease: "power1.inOut" }, t);
+});
+tl.call(() => { $("#pmsg").textContent = ""; }, [], pStart - .01);
+// real loss values from the log
+const loss = [2.300, 1.520, 1.221, 0.903, 0.890, 0.698, 1.141, 0.545, 0.562, 0.486, 1.107, 0.701, 0.399, 0.783, 0.519, 0.780];
+(function () {
+  const svg = $("#loss"), w = 1020, h = 70, mx = 2.4;
+  const pts = loss.map((v, i) => [i * w / (loss.length - 1), h - (v / mx) * h]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  svg.innerHTML = `<path id="lp" d="${d}" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linejoin="round"/>
+    <text x="0" y="-8" fill="#6c6781" font-family="JetBrains Mono" font-size="16">training loss (real)</text>`;
+  const len = svg.querySelector("#lp").getTotalLength();
+  tl.fromTo("#lp", { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: pEnd - pStart, ease: "none" }, pStart);
+})();
+["#c1", "#c2", "#c3", "#c4", "#c5"].forEach((c, i) => tl.fromTo(c, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: .45, ease },
+  [W("train", "Qwen3"), W("train", "7B") + .2, pEnd - .9, W("train", "own"), W("train", "fifteen")][i] - .1));
+
+// ---------- 5. gate
+scene("gate", "#s-gate");
+tl.fromTo("#gchips", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease }, W("gate", "blind") - .2);
+tl.fromTo("#gv2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, W("gate", "early") - .2);
+tl.fromTo("#gno", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: .35, ease: "back.out(2)" }, W("gate", "turned"));
+tl.fromTo("#gv4", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, W("gate", "This") - .2);
+const cnt = { n: 0 };
+tl.fromTo(cnt, { n: 0 }, { n: 51, duration: 1.4, ease: "power2.out", onUpdate: () => { $("#g51").textContent = Math.round(cnt.n); } }, W("gate", "right"));
+tl.fromTo("#gci", { scaleX: 0, transformOrigin: "left" }, { scaleX: 1, duration: .6, ease }, W("gate", "right") + 1.2);
+tl.fromTo("#gyes", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: .35, ease: "back.out(2)" }, W("gate", "51", 2) + .3);
+tl.to(["#gv2", "#gv4", "#gchips"], { y: -150, duration: .6, ease }, W("gate", "So") - .3);
+tl.to(["#gtitle", "#geye"], { opacity: 0, duration: .3 }, W("gate", "So") - .3);
+tl.to("#gv2", { opacity: .35, duration: .6 }, W("gate", "So") - .3);
+tl.set("#gflow", { opacity: 1 }, 0);
+gsap.utils.toArray("#gflow > *").forEach((el, i) =>
+  tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .4, ease }, W("gate", "So") + i * .22));
+
+// ---------- 6. shadow: the real 20 judged samples, in the order they happened
+scene("shadow", "#s-shadow");
+const dots = $("#dots");
+const order = "YYYYYYYNNYYYYYYYYYYY";
+for (let i = 0; i < 20; i++) { const d = document.createElement("div"); d.className = "dotx"; dots.appendChild(d); }
+const dStart = W("shadow", "answers"), dEnd = W("shadow", "agreed") + .8;
+const agree = { n: 0 };
+[...dots.children].forEach((d, i) => {
+  const t = dStart + i * (dEnd - dStart) / 20;
+  tl.call(() => { d.className = "dotx " + (order[i] === "Y" ? "y" : "n"); d.textContent = order[i] === "Y" ? "✓" : "×"; }, [], t);
+  tl.call(() => { d.className = "dotx"; d.textContent = ""; }, [], dStart - .01);
+  tl.fromTo(d, { scale: .8 }, { scale: 1, duration: .3, ease: "back.out(2)", immediateRender: false }, t);
+});
+tl.call(() => {}, [], 0);
+function setAgree(t) {
+  const s = Math.max(0, Math.min(20, Math.floor((t - dStart) / ((dEnd - dStart) / 20)) + 1));
+  const ok = [...order.slice(0, s)].filter(c => c === "Y").length;
+  $("#sagree").textContent = t < dStart ? "0 / 0" : `${ok} / ${s}`;
+}
+tl.to("#pshadow", { opacity: .3, duration: .4 }, W("shadow", "live") - .1);
+tl.to("#plive", { opacity: 1, scale: 1.08, duration: .4, ease: "back.out(2)" }, W("shadow", "live") - .1);
+
+// ---------- 7. live (real session, Nov 8 10:10)
+scene("live", "#s-live");
+const l0 = S("live") + .2;
+terminal($("#lv"), [
+  cmdLine(l0, 'hermes chat -q "How many .pdf files are in my Downloads folder? Use the terminal."'),
+  { t: l0 + 1.6, html: "" },
+  { t: l0 + 1.8, html: '💻 $ find "$HOME/Downloads" -type f -iname \'*.pdf\'   <span class="mu">6.9s</span>' },
+  { t: l0 + 2.4, html: "" },
+  { t: l0 + 2.6, html: '<span style="color:#fbbf24">☤ Hermes</span>' },
+  { t: l0 + 2.8, html: '9 PDF files in C:\\Users\\Admin\\Downloads' },
+  { t: l0 + 2.9, html: '<span class="mu">(case-insensitive match, recursive).</span>' },
+]);
+tl.fromTo("#lroute", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .4, ease }, l0 + 2.0);
+["#k1", "#k2", "#k3"].forEach((k, i) => tl.fromTo(k, { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: .4, ease }, W("live", "checked") - .3 + i * .25));
+tl.set("#lchecks", { opacity: 1 }, 0);
+tl.fromTo("#lfb", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .5, ease }, W("live", "off") - .2);
+
+// ---------- 8. outro
+scene("outro", "#s-outro");
+tl.fromTo("#omark", { scale: .7, opacity: 0 }, { scale: 1, opacity: 1, duration: .8, ease: "back.out(1.4)" }, S("outro") + .05);
+tl.fromTo("#oword", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .6, ease }, S("outro") + .3);
+tl.fromTo("#otag", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .6, ease }, W("outro", "Your") - .1);
+tl.fromTo("#ocmd", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .6, ease }, W("outro", "proven"));
+tl.fromTo("#olinks", { opacity: 0 }, { opacity: 1, duration: .6 }, W("outro", "work") + .2);
+tl.to("#stage", { opacity: 0, duration: .6 }, TL.total - .6);
+
+// ---------- captions: clauses of each scene's text, timed from the word boundaries
+const CAPS = [];
+for (const s of TL.scenes) {
+  const parts = s.text.match(/[^,.;:]+[,.;:]?/g).map(p => p.trim()).filter(Boolean);
+  const chunks = [];
+  for (const p of parts) {
+    const ws = p.split(/\s+/);
+    if (chunks.length && chunks[chunks.length - 1].split(/\s+/).length + ws.length <= 6) chunks[chunks.length - 1] += " " + p;
+    else if (ws.length > 11) { const h = Math.ceil(ws.length / 2); chunks.push(ws.slice(0, h).join(" "), ws.slice(h).join(" ")); }
+    else chunks.push(p);
+  }
+  const total = s.text.split(/\s+/).length; let idx = 0;
+  chunks.forEach((c, i) => {
+    const n = c.split(/\s+/).length;
+    const bi = Math.min(s.words.length - 1, Math.round(idx * s.words.length / total));
+    const t = s.start + (s.words[bi] ? s.words[bi].t : 0);
+    CAPS.push({ t, text: c.replace(/[,;:]$/, "") });
+    idx += n;
+  });
+  CAPS.push({ t: s.start + s.speech + .15, text: "" });
+}
+CAPS.sort((a, b) => a.t - b.t);
+function setCap(t) { let txt = ""; for (const c of CAPS) if (t >= c.t) txt = c.text; $("#cap").textContent = txt; }
+
+window.seek = t => { tl.seek(t, false); setStep(t); setAgree(t); setCap(t); };
+window.READY = document.fonts.ready.then(() => Promise.all([...document.images].map(i => i.complete ? 1 : new Promise(r => i.onload = r))));
+window.seek(0);
+</script>
+</body>
+</html>

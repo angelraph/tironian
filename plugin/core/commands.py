@@ -76,18 +76,28 @@ def report_text(app: App) -> str:
 
 
 def families_text(app: App) -> str:
-    rows = app.store.q("SELECT f.*, (SELECT gate_passed || ':' || printf('%.2f', wilson_lo) FROM evals e "
-                       "WHERE e.family_id=f.id ORDER BY created_at DESC LIMIT 1) AS last_eval "
-                       "FROM families f ORDER BY n_turns DESC LIMIT 20")
+    rows = app.store.q("SELECT f.*, (SELECT id FROM evals e WHERE e.family_id=f.id ORDER BY created_at DESC LIMIT 1) "
+                       "AS last_eval FROM families f ORDER BY n_turns DESC LIMIT 20")
     if not rows:
         return "No task families yet."
-    out = ["id         status      req  good  last eval    name"]
+    out = ["id         status      req  good  last eval          name"]
     for r in rows:
-        ev = r["last_eval"] or "-"
-        if ev != "-":
-            ok, lo = ev.split(":")
-            ev = f"{'pass' if ok == '1' else 'fail'} {float(lo):.0%}"
-        out.append(f"{r['id']:<10} {r['status']:<10} {r['n_turns']:>4} {r['n_good']:>5}  {ev:<11}  {r['name'][:50]}")
+        ev = "-"
+        if r["last_eval"]:
+            e = app.store.one("SELECT gate_passed, wilson_lo, report_json FROM evals WHERE id=?", (r["last_eval"],))
+            try:
+                rep = json.loads(e["report_json"] or "{}")
+            except ValueError:
+                rep = {}
+            serve = rep.get("serve_steps") or []
+            steps = rep.get("steps") or {}
+            if e["gate_passed"] and serve and set(serve) != set(steps):
+                # Passed for some kinds of step only: show the bound that earned it, and for what.
+                k = max(serve, key=lambda s: (steps.get(s) or {}).get("wilson_lo", 0))
+                ev = f"pass {(steps.get(k) or {}).get('wilson_lo', 0):.0%} {k}"
+            else:
+                ev = f"{'pass' if e['gate_passed'] else 'fail'} {e['wilson_lo']:.0%}"
+        out.append(f"{r['id']:<10} {r['status']:<10} {r['n_turns']:>4} {r['n_good']:>5}  {ev:<17}  {r['name'][:50]}")
     return "\n".join(out)
 
 

@@ -11,3 +11,5 @@ seed_sessions.jsonl
 node_modules/
 .vercel/
 .env
+demo/out/
+demo/node_modules/

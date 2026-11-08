@@ -1,0 +1,8 @@
+{
+  "name": "tironian-demo",
+  "private": true,
+  "description": "Builds the Tironian demo video: npm install, then python demo/voice.py, demo/music.py, demo/render.py",
+  "dependencies": {
+    "gsap": "3.12.5"
+  }
+}

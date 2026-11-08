@@ -82,6 +82,7 @@ class App:
         s = self.settings()
         self.redactor = Redactor(pii=s.redact_pii)
         self.engine = Engine(self.store, self.settings, self.redactor, on_event=self.broadcast)
+        self.engine.judge_factory = self.judge
         self._bg_lock = threading.Lock()
         self.bg_status: dict[str, Any] = {}
 

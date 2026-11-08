@@ -88,6 +88,10 @@ class Engine:
     clock: Callable[[], float] = time.time
     student_factory: Callable[[Settings], StudentClient] | None = None
     on_event: Callable[[str, dict[str, Any]], None] | None = None
+    judge_factory: Callable[[], Any] | None = None   # the same blind judge the held-out test uses
+    _judge: Any = None
+    _judge_day: str = ""
+    _shadow_n: int = 0
     _turns: "OrderedDict[str, TurnState]" = field(default_factory=OrderedDict)
     _session_turn: dict[str, str] = field(default_factory=dict)
     _session_idx: dict[str, int] = field(default_factory=dict)
@@ -466,6 +470,18 @@ class Engine:
         self._emit("route.served", {"family": chosen.family.id, "latency_ms": reply.latency_ms, "saved_usd": saved})
         return response
 
+    def _shadow_judge(self) -> Any:
+        """One judge per day, so its call budget is a daily one here."""
+        day = time.strftime("%Y-%m-%d", time.localtime(self.clock()))
+        if day != self._judge_day:
+            self._judge_day = day
+            try:
+                self._judge = self.judge_factory() if self.judge_factory else None
+            except Exception:
+                log.debug("tironian: no judge for shadow", exc_info=True)
+                self._judge = None
+        return self._judge
+
     def _shadow(self, plan: dict[str, Any], kw: dict[str, Any], teacher_response: Any) -> None:
         """Ask the student the same question in the background and record agreement."""
         if not self._shadow_busy.acquire(blocking=False):
@@ -482,8 +498,12 @@ class Engine:
                 if not reply.ok:
                     outcome = "shadow_error"
                 else:
+                    # Shadow agreement is judged like the held-out test, or a different but
+                    # equally right command would always count against the student.
+                    self._shadow_n += 1
                     chk = check_decision(reply.text, teacher.get("content") or "", teacher.get("tool_calls") or [],
-                                         plan["tools"], user_request=plan["turn"].user_text)
+                                         plan["tools"], user_request=plan["turn"].user_text,
+                                         judge=self._shadow_judge(), flip=bool(self._shadow_n % 2))
                     outcome = "shadow_agree" if chk.passed else "shadow_disagree"
                 self.store.insert("routes", {
                     "turn_id": plan["turn"].turn_id, "decision_id": kw.get("api_request_id"),

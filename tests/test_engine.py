@@ -196,6 +196,23 @@ def test_shadow_mode_never_blocks_and_records(app_factory, llama):
     assert app.store.scalar("SELECT outcome FROM routes") == "shadow_agree"
 
 
+def test_shadow_uses_the_judge(app_factory, llama):
+    """Found live: shadow compared answers word for word, so a different but right answer
+    always counted as a disagreement, unlike the held-out test."""
+    import time
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama, status="shadow")
+    llama.replies = [render_target("Your Downloads folder is mostly one big ISO image.", [])]
+    seen = []
+    app.engine.judge_factory = lambda: (lambda r, a, b: seen.append((a, b)) or "tie")
+    run_turn(app, "what's using disk space in ~/Downloads", Teacher())
+    for _ in range(50):
+        if app.store.scalar("SELECT COUNT(*) FROM routes"):
+            break
+        time.sleep(0.05)
+    assert seen and app.store.scalar("SELECT outcome FROM routes") == "shadow_agree"
+
+
 def test_auto_demote_on_high_fallback_rate(app_factory, llama):
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)
     promote(app, llama)

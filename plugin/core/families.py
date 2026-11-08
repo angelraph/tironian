@@ -222,8 +222,8 @@ class Family:
                     c, p = max(pairs)
                     if c >= 0.4 * self.term_counts[term]:
                         term = p
-            if any(term in p or p in term for p in picked):
-                continue
+            if any(term in p or p in term or set(term.split()) == set(p.split()) for p in picked):
+                continue   # "files largest" adds nothing to "largest files"
             picked.append(term)
             if len(picked) == k:
                 break

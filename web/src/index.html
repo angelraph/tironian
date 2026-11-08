@@ -48,7 +48,7 @@
     <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
     <div class="facts">
       <span><b>0 bytes</b> sent anywhere before you train</span><i></i>
-      <span><b>about $0.30</b> per training run, hard capped</span><i></i>
+      <span><b>about $0.15</b> per training run, hard capped</span><i></i>
       <span>live only above an <b>85%</b> lower bound</span><i></i>
       <span><b>54</b> tests, plus live checks on Hermes v0.22.7</span><i></i>
       <span><b>MIT</b> licensed</span>
@@ -135,7 +135,7 @@ tool schemas          20
 values masked          3</pre></div>
       </div>
       <div class="loop-panel" id="p-grade" role="tabpanel" aria-labelledby="t-grade" hidden>
-        <div><span class="kicker">Grade</span><h3>Mark what worked. Flag what broke.</h3><p>Deterministic signals from the turn itself, plus your own <code>/tironian good</code> and <code>bad</code>. An optional judge only settles the unclear ones.</p><a class="more link" href="/how-it-works#grading">Grading in detail</a></div>
+        <div><span class="kicker">Grade</span><h3>Mark what worked. Flag what broke.</h3><p>Deterministic signals from the turn itself, plus your own <code>/tironian good</code> and <code>bad</code>. When it is unclear how a turn went, it is not learned from.</p><a class="more link" href="/how-it-works#grading">Grading in detail</a></div>
         <div class="term"><pre>good     <span class="t-ok">█████████████████</span>  37
 unknown  <span class="t-m">███</span>                 6
 bad      <span class="t-w">██</span>                  4</pre></div>
@@ -151,7 +151,7 @@ bad      <span class="t-w">██</span>                  4</pre></div>
         <div class="term"><pre>base     unsloth/Qwen3-1.7B
 method   LoRA r16, all linear layers
 output   Q4_K_M GGUF, about 1.1 GB
-cost     about $0.30 on a Modal L4</pre></div>
+cost     about $0.15 on a Modal L4</pre></div>
       </div>
       <div class="loop-panel" id="p-test" role="tabpanel" aria-labelledby="t-test" hidden>
         <div><span class="kicker">Test</span><h3>Ship only what passes.</h3><p>Same tool, matching arguments, valid format. The pass rate's lower confidence bound has to clear your threshold before anything changes.</p><a class="more link" href="/how-it-works#gate">The gate in detail</a></div>

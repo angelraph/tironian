@@ -66,7 +66,7 @@
         <tr><td><code>/tironian good</code> or <code>bad</code></td><td>overrides everything</td></tr>
       </tbody>
     </table>
-    <p>A turn scoring 0.3 or more with no hard negative is <b>good</b>. A turn at −0.3 or below is <b>bad</b>. Everything else is <b>unknown</b> and is left out of training. An optional judge model, off by default and limited by a daily budget, can settle unknown turns. It can never override a hard negative.</p>
+    <p>A turn scoring 0.3 or more with no hard negative is <b>good</b>. A turn at −0.3 or below is <b>bad</b>. Everything else is <b>unknown</b> and is left out of training. When in doubt, a turn is not learned from.</p>
 
     <h2 id="families">3. Task families</h2>
     <p>A family is a recurring kind of request. Students are trained and tested per family, which keeps each one small and specialised. Grouping is deterministic, so the same history always gives the same families.</p>

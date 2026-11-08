@@ -18,8 +18,8 @@ description: >-
   `hermes tironian trainer setup`, run by the user, creates a venv in plugin data and installs the modal
   client from PyPI; training starts only on an explicit user action and then uploads that family's masked
   examples to a private Volume in the user's own Modal account (deleted after the run), or runs on the
-  user's own GPU; the optional judge (off by default) sends held-out examples to the model assigned to the
-  "Tironian judge" auxiliary slot. No telemetry.
+  user's own GPU; the optional judge (off by default) sends held-out examples, and in shadow mode differing
+  answers within a daily budget, to the model assigned to the "Tironian judge" auxiliary slot. No telemetry.
 maintainer: angelraph
 tier: community
 category: models

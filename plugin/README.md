@@ -27,7 +27,7 @@ runtime. Tironian connects them:
    the same history always gives the same families.
 4. For a family with enough good examples, it fine-tunes a small model (Qwen3 1.7B, LoRA,
    exported as a quantized GGUF). Training runs on a GPU in your own Modal account, about
-   $0.30 a run with a hard cap, or on your own NVIDIA card.
+   $0.15 a run with a hard cap, or on your own NVIDIA card.
 5. It tests that model on steps from sessions it never saw during training. The first step of
    a task (answering the request) and the steps after a tool result are scored separately, and
    the model is only promoted for a kind of step if the lower end of the 95% confidence
@@ -127,7 +127,9 @@ Hermes's local model server at `http://127.0.0.1:8080/v1` by default, or Ollama 
 training run does Tironian's separate trainer process upload that family's masked training set
 to a private Volume in your own Modal account, train there, download the model and delete the
 job's files from the Volume. The optional judge, off by default, sends held-out examples to
-whichever model you assign to the "Tironian judge" slot.
+whichever model you assign to the "Tironian judge" slot. While a family is in shadow mode it
+also sends that model the request and both answers when they differ, up to
+`judge_daily_budget` calls a day.
 
 **Processes and installs.** `hermes tironian trainer setup` creates a venv inside the plugin's
 data folder and installs the `modal` client from PyPI (`--local` also installs the training

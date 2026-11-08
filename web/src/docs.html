@@ -69,7 +69,7 @@ Top task families:
     </ol>
     <pre>MODAL_TOKEN_ID=ak-...
 MODAL_TOKEN_SECRET=as-...</pre>
-    <p>A run on an L4 GPU costs about $0.30 for a 1.7B model. <code>max_usd_per_run</code> (default $1.00) is enforced as a timeout on the GPU job, so a run can never cost more. The first run builds the training image, which adds a few minutes. See <a href="/pricing">Cost</a> for an estimate based on your own numbers.</p>
+    <p>A run on an L4 GPU costs about $0.15 for a 1.7B model (my runs: 180 examples, about ten minutes, $0.14). <code>max_usd_per_run</code> (default $1.00) is enforced as a timeout on the GPU job, so a run can never cost more. The first run builds the training image, which adds a few minutes. See <a href="/pricing">Cost</a> for an estimate based on your own numbers.</p>
 
     <h2 id="local-gpu">On your own GPU</h2>
     <p>With an NVIDIA card, training is free and nothing leaves your machine.</p>
@@ -133,7 +133,7 @@ hermes config set plugins.entries.tironian.settings.train_backend local</pre>
         <tr><td><code>exclude_platforms</code></td><td>cron, kanban</td><td>Never learn from these</td></tr>
         <tr><td><code>redact_pii</code></td><td>true</td><td>Mask personal details as well as secrets</td></tr>
         <tr><td><code>retention_days</code></td><td>90</td><td>Drop recorded contexts after this</td></tr>
-        <tr><td><code>judge_enabled</code></td><td>false</td><td>Use a judge model for final answers</td></tr>
+        <tr><td><code>judge_enabled</code></td><td>false</td><td>Use a blind judge when a student's answer differs from yours (held-out test and shadow mode)</td></tr>
         <tr><td><code>base_model</code></td><td>qwen3-1.7b</td><td>Or qwen3-4b</td></tr>
         <tr><td><code>train_backend</code></td><td>modal</td><td>Or local</td></tr>
         <tr><td><code>modal_gpu</code></td><td>L4</td><td>Or A10G</td></tr>

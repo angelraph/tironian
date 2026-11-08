@@ -5,8 +5,7 @@ learns. Signals come from what actually happened, never from the model's opinion
 tool outcomes, exit codes, whether the user corrected or repeated the request, approvals,
 interrupts, reactions, and explicit ``/tironian good|bad`` marks.
 
-An optional LLM judge (budgeted, off by default) can only resolve turns that the deterministic
-signals leave ``unknown``; it never overrides a hard negative.
+Turns the signals leave ``unknown`` are simply not trained on.
 """
 
 from __future__ import annotations

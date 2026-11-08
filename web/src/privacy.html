@@ -66,7 +66,7 @@
     <h2 id="sends">What it sends</h2>
     <p><b>During normal use: nothing.</b> The router only talks to <code>student_endpoint</code>, which is Hermes's own local model server on <code>127.0.0.1</code> by default.</p>
     <p><b>When you start a training run:</b> Tironian's separate trainer process uploads that one family's masked training examples to a private Volume in <b>your own</b> Modal account, trains there, downloads the model and deletes the job's files from the Volume. Held-out examples used for testing never leave your machine.</p>
-    <p><b>If you switch on the judge</b> (off by default): held-out examples are sent to whichever model you assign to the "Tironian judge" slot in Hermes.</p>
+    <p><b>If you switch on the judge</b> (off by default): held-out examples are sent to whichever model you assign to the "Tironian judge" slot in Hermes. While a family is in shadow mode, that model also gets the request and both answers whenever they differ, up to a daily budget you set.</p>
     <p>There is no telemetry, no analytics and no account.</p>
 
     <h2 id="control">Your controls</h2>

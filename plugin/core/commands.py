@@ -33,14 +33,31 @@ def status_text(app: App) -> str:
     s = app.engine.summary()
     st = app.settings()
     job = jobs.active_job(app.store)
+    def n(k: int, word: str) -> str:
+        return f"{k} {word}" if k == 1 else f"{k} {word}s"
+
+    share = s["local_share"]
+    share_txt = "under 1%" if 0 < share < 0.01 else _pct(share)
     lines = [
-        f"Learning from {s['turns']} turns ({s['good']} good, {s['bad']} bad) · {s['trainable']} trainable steps"
-        f" · {s['redactions'] or 0} values redacted",
-        f"Students: {s['families_live']} live, {s['families_shadow']} in shadow · routing "
-        f"{'on' if st.routing_enabled else 'off'}",
-        f"Served locally: {s['served']} requests ({_pct(s['local_share'])} of all) · {s['fallbacks']} silent "
-        f"fallbacks · saved {_usd(s['saved_usd'])}",
+        f"Learning from {n(s['turns'], 'turn')} ({s['good']} good, {s['bad']} bad) · {n(s['trainable'], 'trainable step')}"
+        f" · {s['redactions'] or 0} values masked",
+        f"Students: {s['families_live']} live, {s['families_shadow']} in shadow · students may answer: "
+        f"{'yes' if st.routing_enabled else 'no'}",
     ]
+    for f in app.store.q("SELECT f.id, f.name, f.status, s.model_id FROM families f JOIN students s ON s.id=f.student_id "
+                         "WHERE f.status IN ('shadow','live') ORDER BY f.n_turns DESC LIMIT 5"):
+        try:
+            steps = json.loads(app.store.meta_get(f"serve_steps:{f['id']}") or "[]")
+        except ValueError:
+            steps = []
+        which = {"first": "first steps", "follow": "steps after a tool result"}
+        part = " and ".join(which.get(k, k) for k in steps) or "all steps"
+        lines.append(f"  {f['name']} ({f['id']}): {f['status']}, {part} · {f['model_id']}")
+    saved = _usd(s["saved_usd"])
+    if not s["saved_usd"] and s["served"]:
+        saved += " (your usual model is free)"
+    lines.append(f"Served locally: {n(s['served'], 'request')} ({share_txt} of all) · "
+                 f"{n(s['fallbacks'], 'silent fallback')} · saved {saved}")
     if job:
         row = app.poll_job(job["id"]) or dict(job)
         lines.append(f"Training {row['family_id']}: {row['status']} {_pct(row['progress'] or 0)} · {row['message']}")

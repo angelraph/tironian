@@ -17,10 +17,10 @@ Tironian, a Hermes plugin: it trains a small local model on the tasks you repeat
 
 https://tironian.vercel.app @NousResearch
 
-## Typeform answers (draft; fill in the two links on the day)
+## Typeform answers (draft; fill in the X link on the day)
 
 - **Project name:** Tironian
-- **Catalog PR link:** (the PR on NousResearch/hermes-agent)
+- **Catalog PR link:** https://github.com/NousResearch/hermes-agent/pull/151281
 - **Demo video on X:** (the post link)
 - **One-line description:** Trains a small local model on the requests you repeat in Hermes, proves it on your own held-out sessions, and routes those requests to it with a silent fallback to your usual model.
 - **Repository:** https://github.com/angelraph/tironian

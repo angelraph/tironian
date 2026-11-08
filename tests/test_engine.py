@@ -213,6 +213,30 @@ def test_shadow_uses_the_judge(app_factory, llama):
     assert seen and app.store.scalar("SELECT outcome FROM routes") == "shadow_agree"
 
 
+def test_shadow_runs_without_the_answer_switch(app_factory, llama):
+    """Found live: shadow only collected samples once students were allowed to answer, so
+    following the README (shadow, then promote, then switch on) never got anywhere."""
+    import time
+    app = app_factory(routing_enabled=False, student_endpoint=llama.url)
+    promote(app, llama, status="shadow")
+    llama.replies = [render_target("done", [])]
+    t = Teacher()
+    run_turn(app, "what's using disk space in ~/Downloads", t)
+    for _ in range(50):
+        if app.store.scalar("SELECT COUNT(*) FROM routes"):
+            break
+        time.sleep(0.05)
+    assert t.calls == 1 and app.store.scalar("SELECT mode FROM routes") == "shadow"
+
+
+def test_live_family_needs_the_answer_switch(app_factory, llama):
+    app = app_factory(routing_enabled=False, student_endpoint=llama.url)
+    promote(app, llama)
+    t = Teacher()
+    run_turn(app, "what's using disk space in ~/Downloads", t)
+    assert t.calls == 1 and not llama.calls
+
+
 def test_session_start_warms_the_student(app_factory, llama):
     """Found live: Ollama unloads an idle student and the cold start blew the routing deadline."""
     import time

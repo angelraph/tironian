@@ -145,7 +145,7 @@ class Engine:
             "id": sid, "platform": platform, "provider": kw.get("provider"), "model": kw.get("model"),
             "started_at": self.clock(), "ended_at": None, "completed": None,
             "excluded": int(excluded), "exclude_reason": "platform" if excluded else None, "source": "live"})
-        if s.routing_enabled and not excluded and self.warm_enabled:
+        if not excluded and self.warm_enabled:
             self._warm(s)
 
     _warmed_at: float = -1e9
@@ -419,7 +419,11 @@ class Engine:
     def _plan(self, kw: dict[str, Any]) -> dict[str, Any] | None:
         s = self.settings()
         st = self._turn(kw.get("turn_id"))
-        if st is None or not s.routing_enabled or st.sticky_fallback:
+        if st is None or st.sticky_fallback:
+            return None
+        # Shadow mode never answers, so it runs whether or not students may answer. Only a live
+        # family needs the "let promoted students answer" switch.
+        if not s.routing_enabled and not any(p.status == "shadow" for p in self.promoted()):
             return None
         api_mode = str(kw.get("api_mode") or "chat_completions")
         if api_mode not in ("chat_completions", "anthropic_messages"):
@@ -443,6 +447,8 @@ class Engine:
         family_tools = select_tools(tools, chosen.toolset)
         compact = compact_messages(messages, family_tools, max_tokens=s.max_context_tokens)
         if compact.had_image or compact.tokens > s.max_context_tokens:
+            return None
+        if chosen.status == "live" and not s.routing_enabled:
             return None
         return {"mode": chosen.status, "family": chosen, "turn": st, "compact": compact,
                 "tools": family_tools, "api_mode": api_mode, "settings": s}

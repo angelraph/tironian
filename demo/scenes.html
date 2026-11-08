@@ -121,6 +121,17 @@
   <div class="glow" id="glow"></div>
 
   <!-- 1. intro -->
+  <section class="scene" id="s-hook">
+      <div class="eyebrow" style="position:absolute; left:160px; top:190px;">Today</div>
+      <h2 class="title" style="position:absolute; left:160px; top:226px;">The same small jobs, every day</h2>
+      <div class="req" id="r1" style="top:380px;"><small>REQUEST</small>How many .pdf files are in my Downloads?</div>
+      <div class="req" id="r2" style="top:520px;"><small>REQUEST</small>Count the .zip files in Desktop.</div>
+      <div class="req" id="r3" style="top:660px;"><small>REQUEST</small>How many .png files are in Pictures?</div>
+      <div class="flow" id="f1" style="top:430px; transform: rotate(5deg);"></div>
+      <div class="flow" id="f2" style="top:570px;"></div>
+      <div class="flow" id="f3" style="top:710px; transform: rotate(-5deg);"></div>
+      <div class="cloud" id="cloud"><div style="font-size:54px;">☁</div><div class="t">A big cloud model</div><div class="s">every time · paid per call</div></div>
+  </section>
   <section class="scene center" id="s-intro">
     <div style="position:relative; width:300px; height:300px;">
       <div id="ring" style="position:absolute; inset:-60px; border-radius:50%; background: radial-gradient(closest-side, rgba(139,92,246,.45), transparent);"></div>
@@ -133,18 +144,7 @@
 
   <!-- 2. pipeline -->
   <section class="scene" id="s-pipe">
-    <div id="pa" class="scene" style="opacity:1">
-      <div class="eyebrow" style="position:absolute; left:160px; top:190px;">Today</div>
-      <h2 class="title" style="position:absolute; left:160px; top:226px;">The same few jobs, every day</h2>
-      <div class="req" id="r1" style="top:380px;"><small>REQUEST</small>How many .pdf files are in my Downloads?</div>
-      <div class="req" id="r2" style="top:520px;"><small>REQUEST</small>Count the .zip files in Desktop.</div>
-      <div class="req" id="r3" style="top:660px;"><small>REQUEST</small>How many .png files are in Pictures?</div>
-      <div class="flow" id="f1" style="top:430px; transform: rotate(5deg);"></div>
-      <div class="flow" id="f2" style="top:570px;"></div>
-      <div class="flow" id="f3" style="top:710px; transform: rotate(-5deg);"></div>
-      <div class="cloud" id="cloud"><div style="font-size:54px;">☁</div><div class="t">A big cloud model</div><div class="s">every time · paid per call · your data leaves</div></div>
-    </div>
-    <div id="pb" class="scene">
+    <div id="pb" class="scene" style="opacity:1">
       <div class="eyebrow" style="position:absolute; left:160px; top:150px;">What Tironian does</div>
       <h2 class="title" style="position:absolute; left:160px; top:186px;">From your sessions to task families</h2>
       <div class="node" id="n1" style="left:160px;"><div class="n">01</div><div class="h">Record</div><div class="d">every step Hermes takes, with its tool calls and results</div></div>
@@ -202,6 +202,11 @@
     <h2 class="title" id="gtitle" style="position:absolute; left:120px; top:176px;">Proven on sessions it never saw</h2>
     <div id="gchips" style="position:absolute; left:120px; top:280px; display:flex; gap:16px;">
       <div class="chip">Held-out sessions</div><div class="chip">Blind judge</div><div class="chip">95% lower bound ≥ 85%</div>
+    </div>
+    <div id="gsplit" style="position:absolute; left:120px; top:390px; width:1680px; height:340px;">
+      <div style="position:absolute; left:0; top:0; font:600 20px var(--mono); letter-spacing:3px; color:var(--accent-2);" id="gsl1">TRAINED ON</div>
+      <div style="position:absolute; left:1120px; top:0; font:600 20px var(--mono); letter-spacing:3px; color:var(--ok);" id="gsl2">HELD OUT · NEVER SEEN</div>
+      <div id="gtiles" style="position:absolute; left:0; top:44px; width:1680px; height:290px;"></div>
     </div>
     <div class="card" id="gv2" style="left:120px; top:380px; width:560px; height:330px; padding:34px 40px;">
       <div class="eyebrow" style="color:var(--faint)">Early model · v2</div>
@@ -270,7 +275,17 @@
     </div>
   </section>
 
-  <!-- 8. outro -->
+  <!-- 8. desktop: real screenshots of the Tironian page in Hermes -->
+  <section class="scene" id="s-desktop">
+    <div id="dframe" style="position:absolute; left:160px; top:150px; width:1600px; height:760px; border-radius:18px; overflow:hidden;
+      border:1px solid var(--line-2); box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 80px rgba(139,92,246,.15); background:#0a0910;">
+      <img id="dimg1" src="out/desktop1.png" style="position:absolute; left:0; top:0; width:1600px;">
+      <img id="dimg2" src="out/desktop2.png" style="position:absolute; left:0; top:0; width:1600px; opacity:0;">
+    </div>
+    <div class="foot" style="left:160px; top:930px;">Real screen: the Tironian page in Hermes</div>
+  </section>
+
+  <!-- 9. outro -->
   <section class="scene center" id="s-outro">
     <img src="../web/assets/mark-512.png" id="omark" style="width:200px; height:200px;">
     <img src="../web/assets/wordmark.png" id="oword" style="width:520px; margin-top:24px;">
@@ -331,7 +346,7 @@ const cmdLine = (t, text) => ({ t, type: true, text, html: P + '<span class="cmd
 tl.to("#brand", { opacity: 1, duration: .5 }, S("pipeline"));
 tl.to("#steps", { opacity: 1, duration: .5 }, S("pipeline"));
 tl.to(["#brand", "#steps"], { opacity: 0, duration: .4 }, S("outro"));
-const stepOf = { pipeline: "pipe", report: "pipe", train: "train", gate: "gate", shadow: "shadow", live: "live" };
+const stepOf = { pipeline: "pipe", report: "pipe", train: "train", gate: "gate", shadow: "shadow", live: "live", desktop: "live" };
 gsap.ticker.lagSmoothing(0);
 function setStep(t) {
   let cur = null; for (const s of TL.scenes) if (t >= s.start) cur = s.id;
@@ -339,23 +354,24 @@ function setStep(t) {
 }
 tl.fromTo("#glow", { x: -120, y: 30 }, { x: 140, y: -40, duration: TL.total, ease: "sine.inOut" }, 0);
 
-// ---------- 1. intro
-scene("intro", "#s-intro");
-tl.fromTo("#mark", { scale: .6, opacity: 0, rotate: -8 }, { scale: 1, opacity: 1, rotate: 0, duration: 1.2, ease: "back.out(1.4)" }, .15);
-tl.fromTo("#ring", { scale: .4, opacity: 0 }, { scale: 1.15, opacity: 1, duration: 1.6, ease }, .1);
-tl.to("#ring", { scale: 1, opacity: .7, duration: 3, ease: "sine.inOut" }, 1.7);
-tl.fromTo("#word", { y: 30, opacity: 0, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: .9, ease }, .9);
+// ---------- 1. hook, then the logo on "Tironian"
+const tLogo = W("intro", "Tironian") - .25;
+tl.fromTo("#s-hook", { opacity: 0 }, { opacity: 1, duration: .4 }, 0);
+tl.to("#s-hook", { opacity: 0, duration: .4 }, tLogo - .1);
+["#r1", "#r2", "#r3"].forEach((r, i) => tl.fromTo(r, { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: .5, ease }, .2 + i * .4));
+tl.fromTo("#cloud", { scale: .9, opacity: 0 }, { scale: 1, opacity: 1, duration: .6, ease }, W("intro", "big") - .2);
+["#f1", "#f2", "#f3"].forEach((f, i) => tl.fromTo(f, { scaleX: 0 }, { scaleX: 1, duration: .5, ease }, W("intro", "big") + i * .15));
+tl.fromTo("#s-intro", { opacity: 0 }, { opacity: 1, duration: .45 }, tLogo);
+tl.to("#s-intro", { opacity: 0, duration: .35 }, E("intro") - .35);
+tl.fromTo("#mark", { scale: .6, opacity: 0, rotate: -8 }, { scale: 1, opacity: 1, rotate: 0, duration: 1.2, ease: "back.out(1.4)" }, tLogo + .05);
+tl.fromTo("#ring", { scale: .4, opacity: 0 }, { scale: 1.15, opacity: 1, duration: 1.6, ease }, tLogo);
+tl.to("#ring", { scale: 1, opacity: .7, duration: 3, ease: "sine.inOut" }, tLogo + 1.6);
+tl.fromTo("#word", { y: 30, opacity: 0, filter: "blur(10px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: .9, ease }, tLogo + .6);
 tl.fromTo("#tag2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .6, ease }, W("intro", "plugin") - .1);
-tl.fromTo("#tag", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .7, ease }, W("intro", "turns") - .1);
+tl.fromTo("#tag", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .7, ease }, W("intro", "trains") - .1);
 
 // ---------- 2. pipeline
 scene("pipeline", "#s-pipe");
-["#r1", "#r2", "#r3"].forEach((r, i) => tl.fromTo(r, { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: .5, ease }, S("pipeline") + .3 + i * .45));
-tl.fromTo("#cloud", { scale: .9, opacity: 0 }, { scale: 1, opacity: 1, duration: .6, ease }, W("pipeline", "each") - .2);
-["#f1", "#f2", "#f3"].forEach((f, i) => tl.fromTo(f, { scaleX: 0 }, { scaleX: 1, duration: .5, ease }, W("pipeline", "each") + i * .15));
-const tRec = W("pipeline", "Tironian");
-tl.to("#pa", { opacity: 0, duration: .4 }, tRec - .35);
-tl.fromTo("#pb", { opacity: 0 }, { opacity: 1, duration: .4 }, tRec - .05);
 [["#n1", "records"], ["#n2", "masks"], ["#n3", "grades"], ["#n4", "groups"]].forEach(([n, w]) => {
   const t = W("pipeline", w);
   tl.fromTo(n, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, t - .15);
@@ -419,6 +435,31 @@ const loss = [2.300, 1.520, 1.221, 0.903, 0.890, 0.698, 1.141, 0.545, 0.562, 0.4
 // ---------- 5. gate
 scene("gate", "#s-gate");
 tl.fromTo("#gchips", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease }, W("gate", "blind") - .2);
+// Sessions split before training: most train the model, the rest are kept back as the test.
+(function () {
+  const box = $("#gtiles"), n = 39, held = new Set([2, 6, 9, 13, 17, 20, 24, 28, 31, 35, 38]);
+  const tiles = [];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement("div");
+    d.style.cssText = "position:absolute; width:70px; height:70px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04);";
+    box.appendChild(d); tiles.push(d);
+  }
+  let a = 0, b = 0;
+  tiles.forEach((d, i) => {
+    const x0 = (i % 13) * 86, y0 = Math.floor(i / 13) * 86;
+    const isHeld = held.has(i);
+    const x1 = isHeld ? 1120 + (b % 6) * 86 : (a % 12) * 86, y1 = isHeld ? Math.floor(b / 6) * 86 : Math.floor(a / 12) * 86;
+    isHeld ? b++ : a++;
+    gsap.set(d, { x: x0, y: y0 });
+    tl.fromTo(d, { opacity: 0, scale: .7 }, { opacity: 1, scale: 1, duration: .3, ease, immediateRender: false }, S("gate") + .2 + i * .02);
+    tl.to(d, { x: x1, y: y1, duration: .8, ease: "power3.inOut",
+      background: isHeld ? "rgba(94,234,212,.16)" : "rgba(139,92,246,.18)",
+      borderColor: isHeld ? "rgba(94,234,212,.6)" : "rgba(167,139,250,.5)" }, W("gate", "never") - .4 + (i % 7) * .03);
+  });
+  tl.fromTo(["#gsl1", "#gsl2"], { opacity: 0 }, { opacity: 1, duration: .4 }, W("gate", "never") + .3);
+  tl.set("#gsplit", { opacity: 1 }, S("gate"));
+  tl.to("#gsplit", { opacity: 0, duration: .4 }, W("gate", "early") - .6);
+})();
 tl.fromTo("#gv2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, W("gate", "early") - .2);
 tl.fromTo("#gno", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: .35, ease: "back.out(2)" }, W("gate", "turned"));
 tl.fromTo("#gv4", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease }, W("gate", "This") - .2);
@@ -472,7 +513,14 @@ tl.fromTo("#lroute", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .4, ea
 tl.set("#lchecks", { opacity: 1 }, 0);
 tl.fromTo("#lfb", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .5, ease }, W("live", "off") - .2);
 
-// ---------- 8. outro
+// ---------- 8. desktop (real screenshots)
+scene("desktop", "#s-desktop");
+tl.fromTo("#dframe", { y: 40, scale: .97 }, { y: 0, scale: 1, duration: .7, ease }, S("desktop"));
+tl.fromTo("#dimg1", { scale: 1, transformOrigin: "30% 20%" }, { scale: 1.06, duration: SC.desktop.dur, ease: "none" }, S("desktop"));
+tl.to("#dimg2", { opacity: 1, duration: .5 }, W("desktop", "page") - .2);
+tl.fromTo("#dimg2", { scale: 1.04, transformOrigin: "50% 30%" }, { scale: 1, duration: 2.5, ease }, W("desktop", "page") - .2);
+
+// ---------- 9. outro
 scene("outro", "#s-outro");
 tl.fromTo("#omark", { scale: .7, opacity: 0 }, { scale: 1, opacity: 1, duration: .8, ease: "back.out(1.4)" }, S("outro") + .05);
 tl.fromTo("#oword", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .6, ease }, S("outro") + .3);
@@ -484,7 +532,8 @@ tl.to("#stage", { opacity: 0, duration: .6 }, TL.total - .6);
 // ---------- captions: clauses of each scene's text, timed from the word boundaries
 const CAPS = [];
 for (const s of TL.scenes) {
-  const parts = s.text.match(/[^,.;:]+[,.;:]?/g).map(p => p.trim()).filter(Boolean);
+  // Break only at punctuation followed by a space, so "1.7B" or "$0.14" stay whole.
+  const parts = s.text.split(/(?<=[,.;:])\s+/).map(p => p.trim()).filter(Boolean);
   const chunks = [];
   for (const p of parts) {
     const ws = p.split(/\s+/);

@@ -29,7 +29,7 @@ runtime. Tironian connects them:
    the same history always gives the same families.
 4. For a family with enough good examples, it fine-tunes a small model (Qwen3 1.7B, LoRA,
    exported as a quantized GGUF). Training runs on a GPU in your own Modal account, about
-   $0.30 a run with a hard cap, or on your own NVIDIA card.
+   $0.15 a run with a hard cap, or on your own NVIDIA card.
 5. It tests that model on steps from sessions it never saw during training. The first step of
    a task (answering the request) and the steps after a tool result are scored separately, and
    the model is only promoted for a kind of step if the lower end of the 95% confidence
@@ -42,8 +42,28 @@ runtime. Tironian connects them:
    tools the request actually offers, and pass those tools' argument schemas. If any of that
    fails, your usual model answers instead and you don't see the difference.
 
-The goal is simple: routine requests get faster, cheaper and private, and nothing gets worse
-than it is today.
+The goal is simple: routine requests get cheaper and more private (and faster, if you have a
+GPU), and nothing gets worse than it is today.
+
+## Results on my machine
+
+A laptop with no GPU (Intel HD 620, 16 GB), Hermes with a free hosted model, the student served
+by Ollama on the CPU. The family is "count the files of a type in a folder".
+
+| Step | Result |
+|---|---|
+| Training (Modal L4) | 180 examples, 46 steps, about 10 minutes, about $0.14 |
+| Early student (v2) | 7 of 31 held-out steps, lower bound 11%: refused by the gate |
+| Current student (v4), first steps | **51 of 51**, lower bound **93%**: passes |
+| Current student (v4), after a tool result | 45 of 104: stays with my usual model |
+| Shadow mode, real requests | **18 of 20** agreed, so it went live |
+| Live request | first step written by the student in 6.2 s, answer by my usual model |
+| Student unreachable | my usual model answered, nothing shown to me, logged as a fallback |
+
+The held-out steps include 62 from sessions recorded after training. Most of the sessions were
+seeded with `scripts/seed_sessions.py`, which runs real `hermes chat` turns with my own model,
+so I had enough repeated work to learn from in a few days. Everything the bugs taught me along
+the way is in the [changelog](https://tironian.vercel.app/changelog).
 
 ## Install
 

@@ -535,6 +535,37 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     return sc
 
 
+def savings(store: Store) -> dict[str, Any]:
+    """What the students saved, per family, measured from your own data.
+
+    - ``served``: steps a student answered instead of your usual model.
+    - ``local_share``: of the matching steps routed while the family was live (served, spot
+      checks and fallbacks), the share the student answered.
+    - ``tokens_avoided``: served steps times the average prompt your usual model was actually sent
+      for that family's first steps. These are tokens that never left the machine.
+    - ``usd_avoided``: the same, priced at what those steps actually cost you (zero on a free model).
+    """
+    out: dict[str, Any] = {"families": {}, "served": 0, "tokens_avoided": 0, "usd_avoided": 0.0}
+    for f in store.q("SELECT id, name FROM families"):
+        routed = store.q("SELECT mode, outcome, saved_usd FROM routes WHERE family_id=? AND mode IN ('live','spot')", (f["id"],))
+        if not routed:
+            continue
+        served = sum(1 for r in routed if r["outcome"] == "served")
+        avg_in = store.scalar(
+            "SELECT AVG(d.in_tok) FROM decisions d JOIN turns t ON t.id=d.turn_id WHERE t.family_id=? "
+            "AND d.served_by='teacher' AND d.call_idx=0 AND d.in_tok IS NOT NULL", (f["id"],), 0) or 0
+        tokens = int(round(served * float(avg_in)))
+        usd = float(sum(r["saved_usd"] or 0 for r in routed))
+        out["families"][f["id"]] = {"name": f["name"], "served": served, "routed": len(routed),
+                                    "local_share": served / len(routed), "avg_prompt_tokens": int(round(float(avg_in))),
+                                    "tokens_avoided": tokens, "usd_avoided": round(usd, 4)}
+        out["served"] += served
+        out["tokens_avoided"] += tokens
+        out["usd_avoided"] += usd
+    out["usd_avoided"] = round(out["usd_avoided"], 4)
+    return out
+
+
 def forget_session(store: Store, session_id: str) -> dict[str, Any]:
     """Forget a session exactly: delete everything recorded from it, and take any student that
     learned from it off duty until it is retrained without it.

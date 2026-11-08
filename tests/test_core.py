@@ -104,6 +104,16 @@ def test_phrasing_alone_does_not_split_a_task():
         assert len({truth[m] for m in f.members}) == 1
 
 
+def test_same_task_on_another_folder_is_not_asking_again():
+    """Found while testing savings: a second routine request read as a re-ask and demoted a student."""
+    again = grade.grade(grade.TurnFacts("How many .pdf files are in Downloads?", [grade.ToolOutcome("terminal")],
+                                        "how many pdf files are in my Downloads", True))
+    assert "user_repeated" in again.reasons and again.hard_negative
+    other = grade.grade(grade.TurnFacts("How many .pdf files are in Downloads?", [grade.ToolOutcome("terminal")],
+                                        "How many .zip files are in Desktop?", True))
+    assert "user_repeated" not in other.reasons and not other.hard_negative
+
+
 def test_grade_signals():
     good = grade.grade(grade.TurnFacts("list files", [grade.ToolOutcome("terminal")], "thanks!", True))
     assert good.label == "good"

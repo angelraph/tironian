@@ -65,6 +65,7 @@ def summary() -> dict[str, Any]:
         "FROM routes WHERE created_at > ? GROUP BY day ORDER BY day", (time.time() - 14 * 86400,))
     return {
         "stats": app.engine.summary(),
+        "savings": pipeline.savings(app.store),
         "report": rep,
         "settings": {"routing_enabled": s.routing_enabled, "train_backend": s.train_backend,
                      "promotion_threshold": s.promotion_threshold, "max_usd_per_run": s.max_usd_per_run},
@@ -83,6 +84,8 @@ def families() -> dict[str, Any]:
         "e.p50_ms, e.report_json "
         "FROM families f LEFT JOIN evals e ON e.id = (SELECT id FROM evals x WHERE x.family_id=f.id "
         "ORDER BY created_at DESC LIMIT 1) ORDER BY f.n_turns DESC LIMIT 40")
+    pipeline, _, _ = _mods()
+    saved_by_family = pipeline.savings(app.store)["families"]
     out = []
     for r in rows:
         d = dict(r)
@@ -105,6 +108,9 @@ def families() -> dict[str, Any]:
         d["spot_n"] = len(spot)
         d["spot_agree"] = sum(1 for x in spot if x["outcome"] == "shadow_agree")
         d["status_reason"] = app.store.meta_get(f"status_reason:{r['id']}") or ""
+        sv = saved_by_family.get(r["id"]) or {}
+        d["routed"] = sv.get("routed", 0)
+        d["tokens_avoided"] = sv.get("tokens_avoided", 0)
         out.append(d)
     return {"families": out, "min_family_turns": app.settings().min_family_turns}
 

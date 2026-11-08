@@ -59,6 +59,32 @@ class Grade:
     hard_negative: bool = False
 
 
+_WORDS = re.compile(r"[a-z0-9_.~/\\-]+")
+_FILLER = frozenset("a an the and or to of in on at for with by is are my me i you please can could would".split())
+
+
+def _asked_again(prev: str, nxt: str) -> bool:
+    """The same request again, arguments included. Task features set arguments aside on purpose
+    (that's what groups "count pdfs in Downloads" with "count zips in Desktop"), so they can't be
+    used here: doing the same kind of task on another folder is moving on, not asking again."""
+    if _arguments(prev) != _arguments(nxt):
+        return False      # another folder, file type, path or number: a new request
+    a = {w.strip(".?!,") for w in _WORDS.findall(prev.lower())} - _FILLER
+    b = {w.strip(".?!,") for w in _WORDS.findall(nxt.lower())} - _FILLER
+    return bool(a and b) and jaccard(frozenset(a), frozenset(b)) >= 0.7
+
+
+_ARG = re.compile(r"[~./\\]\S*|\S*[./\\]\S+|\b\d+\b|(?<=[a-z,;:] )[A-Z][\w-]*")
+
+
+def _arguments(text: str) -> frozenset[str]:
+    """Paths, file types, numbers and names written with a capital: what a request acts on."""
+    from .families import _BARE_EXT
+    found = {m.group(0).strip(".?!,'\"").lower().lstrip("~/\\.") for m in _ARG.finditer(text or "")}
+    found |= {m.group(0) for m in _BARE_EXT.finditer((text or "").lower())}   # "pdf files" is a file type too
+    return frozenset(w for w in found if w)
+
+
 def grade(f: TurnFacts) -> Grade:
     reasons: list[str] = []
     hard = False
@@ -86,7 +112,7 @@ def grade(f: TurnFacts) -> Grade:
             score -= 0.5
             hard = True
             reasons.append("user_corrected")
-        elif jaccard(features(f.user_text), features(nxt)) >= 0.7:
+        elif _asked_again(f.user_text, nxt):
             score -= 0.4
             hard = True
             reasons.append("user_repeated")

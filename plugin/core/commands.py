@@ -65,8 +65,14 @@ def status_text(app: App) -> str:
     saved = _usd(s["saved_usd"])
     if not s["saved_usd"] and s["served"]:
         saved += " (your usual model is free)"
+    sv = pipeline.savings(app.store)
     lines.append(f"Served locally: {n(s['served'], 'request')} ({share_txt} of all) · "
                  f"{n(s['fallbacks'], 'silent fallback')} · saved {saved}")
+    if sv["tokens_avoided"]:
+        lines.append(f"Cloud prompt tokens avoided: {sv['tokens_avoided']:,}")
+        for fid, d in sv["families"].items():
+            lines.append(f"  {d['name']}: answered {d['served']} of {d['routed']} matching steps locally "
+                         f"({_pct(d['local_share'])}), about {d['avg_prompt_tokens']:,} cloud tokens each")
     if job:
         row = app.poll_job(job["id"]) or dict(job)
         lines.append(f"Training {row['family_id']}: {row['status']} {_pct(row['progress'] or 0)} · {row['message']}")

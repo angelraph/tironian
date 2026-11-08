@@ -193,7 +193,9 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
           f.status === 'shadow' && (f.status_reason || '').startsWith('drift')
             ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: `back in shadow: ${f.status_reason.replace(/^drift: /, '')}` })
             : null,
-          f.served ? jsx('span', { children: `answered ${plural(f.served, 'request')}` }) : null,
+          f.served ? jsx('span', { children: f.routed
+            ? `answered ${f.served} of ${f.routed} locally (${pct(f.served / f.routed)}), ${(f.tokens_avoided || 0).toLocaleString()} cloud tokens avoided`
+            : `answered ${plural(f.served, 'request')}` }) : null,
           note ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: note }) : null
         ]
       })
@@ -217,6 +219,7 @@ function TironianPage({ ctx }) {
   if (!data) return jsx('div', { className: 'p-6 text-sm text-(--ui-text-tertiary)', children: 'Loading…' })
 
   const { stats, report, settings, job } = data
+  const savings = data.savings || { tokens_avoided: 0, families: {} }
   const empty = !report.turns
   return jsx('div', {
     className: 'h-full overflow-y-auto',
@@ -250,6 +253,7 @@ function TironianPage({ ctx }) {
             jsx(Tile, { label: 'Requests learned', value: stats.turns, note: `${stats.good} graded good` }),
             jsx(Tile, { label: 'Answered locally', value: stats.local_share > 0 && stats.local_share < 0.01 ? '<1%' : pct(stats.local_share), note: plural(stats.served, 'request') }),
             jsx(Tile, { label: 'Saved', value: usd(stats.saved_usd), note: report.spend_30d_usd ? `of ${usd(report.spend_30d_usd)} in 30 days` : 'model spend' }),
+            jsx(Tile, { label: 'Cloud tokens avoided', value: (savings.tokens_avoided || 0).toLocaleString(), note: 'prompt tokens that never left this machine' }),
             jsx(Tile, { label: 'Silent fallbacks', value: stats.fallbacks, note: 'your model answered instead' }),
             jsx(Tile, { label: 'Models', value: `${stats.families_live} live`, note: `${stats.families_shadow} in shadow` })
           ]

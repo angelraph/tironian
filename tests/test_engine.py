@@ -324,6 +324,25 @@ def test_excluded_session_not_captured(app_factory):
     assert app.store.scalar("SELECT COUNT(*) FROM decisions") == 0
 
 
+def test_savings_count_steps_and_cloud_tokens_kept_local(app_factory, llama):
+    from tironian.core import pipeline
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    with app.store.tx() as c:   # what your model was sent for this family's first steps
+        c.execute("INSERT INTO sessions(id, started_at) VALUES('old', 0)")
+        c.execute("INSERT INTO turns(id, session_id, idx, user_text, family_id, label) VALUES('o1','old',0,'x','fdisk','good')")
+        c.execute("INSERT INTO decisions(id, turn_id, session_id, call_idx, served_by, in_tok, created_at) "
+                  "VALUES('o1:0','o1','old',0,'teacher',12000,0)")
+    llama.replies = [render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "du -sh ~/Downloads"}'}}])] * 3
+    # Different folders: the same request three times in a row would read as you re-asking.
+    for i, folder in enumerate(("Downloads", "Videos", "Music")):
+        run_turn(app, f"what's using disk space in ~/{folder}", Teacher(), turn=f"v{i}")
+    sv = pipeline.savings(app.store)
+    fam = sv["families"]["fdisk"]
+    assert fam["served"] == 3 and fam["routed"] == 3 and fam["local_share"] == 1.0
+    assert fam["avg_prompt_tokens"] == 12000 and sv["tokens_avoided"] == 36000
+
+
 def test_one_correction_of_a_student_answer_sends_it_back_to_shadow(app_factory, llama):
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)
     promote(app, llama)

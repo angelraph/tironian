@@ -11,6 +11,21 @@
   <div class="wrap">
     <div class="timeline">
       <div class="entry reveal">
+        <time>Nov 8, 2026</time>
+        <div>
+          <h3>Live on my machine, and the rough edges a user would hit</h3>
+          <p>The count-files student passed the gate on first steps (51 of 51, lower bound 93%), agreed with my model 18 of 20 times in shadow mode, and now answers live. Getting it there, and then using it the way a new user would, turned up these:</p>
+          <ul>
+            <li>Shadow mode only collected samples once students were allowed to answer, so following the README never got past shadow. It now runs on its own.</li>
+            <li>Shadow mode compared answers word for word, without the judge the held-out test uses, so a different but right command counted against the student.</li>
+            <li>The judge ran out of its call budget mid-test, or timed out, and quietly stopped judging. It now retries, and says when steps went unjudged.</li>
+            <li>Ollama unloads an idle model after a few minutes, and the reload took longer than the routing deadline. Sessions now warm the student when they start.</li>
+            <li>The Tironian page showed the overall score of a family that passed on first steps, which read like a failure. It now shows each kind of step as the gate judged it.</li>
+            <li>The docs said training costs about $0.30. My runs cost $0.14, so they now say about $0.15.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="entry reveal">
         <time>Nov 7, 2026</time>
         <div>
           <h3>First real students, and a stricter, fairer test</h3>

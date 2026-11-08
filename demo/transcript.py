@@ -10,8 +10,9 @@ import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TITLES = {"intro": "Intro", "pipeline": "What it does", "report": "The first report", "train": "Training",
-          "gate": "The gate", "shadow": "Shadow mode", "live": "Live, with fallback", "outro": "Install"}
+TITLES = {"intro": "The problem, and Tironian", "pipeline": "What it does", "report": "The first report", "train": "Training",
+          "gate": "The gate", "shadow": "Shadow mode", "live": "Live, with fallback", "desktop": "Inside Hermes",
+          "outro": "Install"}
 
 
 def ts(t: float, srt: bool = True) -> str:

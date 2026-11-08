@@ -85,9 +85,28 @@ function JobCard({ ctx, job, onChange }) {
   })
 }
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+const KIND = { first: 'first steps', follow: 'after a tool result' }
+
 function TestResult({ f }) {
   if (f.eval_n == null) return jsx('span', { className: 'text-(--ui-text-quaternary)', children: 'not tested' })
   const ok = !!f.gate_passed
+  const steps = f.steps || {}
+  const serve = f.serve_steps || []
+  // Passed for some kinds of step only: show each kind on its own, as the gate judged them.
+  if (ok && serve.length && Object.keys(steps).length > serve.length) {
+    return jsxs('span', {
+      title: f.gate_reason || '',
+      style: { display: 'inline-flex', gap: 16, flexWrap: 'wrap' },
+      children: Object.entries(steps).map(([k, s]) => jsx('span', {
+        key: k,
+        style: { color: serve.includes(k) ? 'var(--ui-accent)' : 'var(--ui-text-tertiary)' },
+        children: serve.includes(k)
+          ? `${KIND[k] || k}: ${s.passed}/${s.n}, lower bound ${pct(s.wilson_lo)}, passes`
+          : `${KIND[k] || k}: ${s.passed}/${s.n}, left to your model`
+      }))
+    })
+  }
   return jsx('span', {
     title: f.gate_reason || '',
     className: ok ? 'text-(--ui-accent)' : 'text-(--ui-text-secondary)',
@@ -98,8 +117,10 @@ function TestResult({ f }) {
 function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
   const [quote, setQuote] = useState(null)
   const [note, setNote] = useState(null)
-  const [label, color] = STATUS[f.status] || [f.status, 'var(--ui-text-tertiary)']
   const ready = f.n_good >= minTurns
+  const [label, color] = f.status === 'candidate' && ready
+    ? ['ready to train', 'var(--ui-text-secondary)']
+    : STATUS[f.status] || [f.status, 'var(--ui-text-tertiary)']
   const mode = m => ctx.rest(`/families/${f.id}/mode`, { method: 'POST', body: { mode: m } })
     .then(r => { setNote(r.message); onChange() })
   const prepare = () => ctx.rest('/train/prepare', { method: 'POST', body: { family: f.id } })
@@ -168,7 +189,7 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
         children: [
           jsx(TestResult, { f }),
           f.shadow_n ? jsx('span', { children: `shadow: agreed ${f.shadow_agree} of ${f.shadow_n}` }) : null,
-          f.served ? jsx('span', { children: `answered ${f.served} requests` }) : null,
+          f.served ? jsx('span', { children: `answered ${plural(f.served, 'request')}` }) : null,
           note ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: note }) : null
         ]
       })
@@ -223,7 +244,7 @@ function TironianPage({ ctx }) {
           className: 'flex flex-wrap gap-3',
           children: [
             jsx(Tile, { label: 'Requests learned', value: stats.turns, note: `${stats.good} graded good` }),
-            jsx(Tile, { label: 'Answered locally', value: pct(stats.local_share), note: `${stats.served} requests` }),
+            jsx(Tile, { label: 'Answered locally', value: stats.local_share > 0 && stats.local_share < 0.01 ? '<1%' : pct(stats.local_share), note: plural(stats.served, 'request') }),
             jsx(Tile, { label: 'Saved', value: usd(stats.saved_usd), note: report.spend_30d_usd ? `of ${usd(report.spend_30d_usd)} in 30 days` : 'model spend' }),
             jsx(Tile, { label: 'Silent fallbacks', value: stats.fallbacks, note: 'your model answered instead' }),
             jsx(Tile, { label: 'Models', value: `${stats.families_live} live`, note: `${stats.families_shadow} in shadow` })
@@ -232,23 +253,31 @@ function TironianPage({ ctx }) {
         !settings.routing_enabled && (stats.families_live || stats.families_shadow)
           ? jsx('div', {
               className: 'rounded-md border border-(--ui-stroke-secondary) px-3 py-2 text-sm text-(--ui-text-secondary)',
-              children: 'Routing is off, so your own model answers everything. Turn on "Let promoted students answer" in Settings, Plugins, Tironian.'
+              children: 'Students may not answer yet, so your own model answers everything (shadow mode still compares in the background). Turn on "Let promoted students answer" in Settings, Plugins, Tironian.'
             })
           : null,
         job ? jsx(JobCard, { ctx, job, onChange: refreshAll }) : null,
         jsx(Section, {
           title: 'Task families',
           right: jsx('span', { className: 'text-xs text-(--ui-text-tertiary)', children: `a model needs ${fams.min_family_turns} good examples, then passes a test at ${pct(settings.promotion_threshold)} or better` }),
-          children: fams.families.length
-            ? jsx('div', {
-                className: 'flex flex-col',
-                children: fams.families.map(f => jsx(FamilyRow, { key: f.id, ctx, f, minTurns: fams.min_family_turns, busy: !!job, onChange: refreshAll }))
-              })
-            : jsx('div', { className: 'text-sm text-(--ui-text-tertiary)', children: 'No recurring tasks found yet.' })
+          children: (() => {
+            // One-off requests aren't a task yet; list them as a count instead of rows.
+            const shown = fams.families.filter(f => f.n_turns >= 3 || f.status !== 'candidate')
+            const hidden = fams.families.length - shown.length
+            return shown.length
+              ? jsxs('div', {
+                  className: 'flex flex-col',
+                  children: [
+                    ...shown.map(f => jsx(FamilyRow, { key: f.id, ctx, f, minTurns: fams.min_family_turns, busy: !!job, onChange: refreshAll })),
+                    hidden ? jsx('div', { key: 'hidden', style: { paddingTop: 10, fontSize: 12, color: 'var(--ui-text-quaternary)' }, children: `${plural(hidden, 'one-off group')} not shown` }) : null
+                  ]
+                })
+              : jsx('div', { className: 'text-sm text-(--ui-text-tertiary)', children: 'No recurring tasks found yet.' })
+          })()
         }),
         jsx('footer', {
           className: 'text-xs text-(--ui-text-quaternary)',
-          children: `${stats.redactions || 0} secrets and personal details were masked before anything was stored. Nothing leaves this computer until you start a training run, and then only to your own Modal account (capped at ${usd(settings.max_usd_per_run)} a run).`
+          children: `${stats.redactions || 0} secrets and personal details were masked before anything was stored. Tironian sends nothing anywhere unless you start a training run (then only to your own Modal account, capped at ${usd(settings.max_usd_per_run)} a run) or switch on the judge.`
         })
       ]
     })
@@ -262,7 +291,7 @@ function Chip({ ctx }) {
   const text = job
     ? `Tironian training ${pct(job.progress)}`
     : stats.served
-      ? `Tironian ${pct(stats.local_share)} local`
+      ? `Tironian ${stats.local_share > 0 && stats.local_share < 0.01 ? '<1%' : pct(stats.local_share)} local`
       : `Tironian ${stats.turns} learned`
   return jsx('button', {
     type: 'button',

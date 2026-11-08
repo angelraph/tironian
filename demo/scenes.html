@@ -280,7 +280,6 @@
     <div id="dframe" style="position:absolute; left:160px; top:150px; width:1600px; height:760px; border-radius:18px; overflow:hidden;
       border:1px solid var(--line-2); box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 80px rgba(139,92,246,.15); background:#0a0910;">
       <img id="dimg1" src="out/desktop1.png" style="position:absolute; left:0; top:0; width:1600px;">
-      <img id="dimg2" src="out/desktop2.png" style="position:absolute; left:0; top:0; width:1600px; opacity:0;">
     </div>
     <div class="foot" style="left:160px; top:930px;">Real screen: the Tironian page in Hermes</div>
   </section>
@@ -516,9 +515,9 @@ tl.fromTo("#lfb", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .5, ease 
 // ---------- 8. desktop (real screenshots)
 scene("desktop", "#s-desktop");
 tl.fromTo("#dframe", { y: 40, scale: .97 }, { y: 0, scale: 1, duration: .7, ease }, S("desktop"));
-tl.fromTo("#dimg1", { scale: 1, transformOrigin: "30% 20%" }, { scale: 1.06, duration: SC.desktop.dur, ease: "none" }, S("desktop"));
-tl.to("#dimg2", { opacity: 1, duration: .5 }, W("desktop", "page") - .2);
-tl.fromTo("#dimg2", { scale: 1.04, transformOrigin: "50% 30%" }, { scale: 1, duration: 2.5, ease }, W("desktop", "page") - .2);
+// Whole page first, then close in on the live family's row: its test result and shadow count.
+tl.fromTo("#dimg1", { scale: 1, transformOrigin: "34% 42%" }, { scale: 1.04, duration: 1.6, ease: "none" }, S("desktop"));
+tl.to("#dimg1", { scale: 1.85, duration: 1.4, ease: "power2.inOut" }, W("desktop", "page") - .1);
 
 // ---------- 9. outro
 scene("outro", "#s-outro");

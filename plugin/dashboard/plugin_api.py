@@ -91,8 +91,12 @@ def families() -> dict[str, Any]:
         rep = json.loads(d.pop("report_json") or "null")
         d["gate_reason"] = rep.get("gate_reason") if rep else None
         d["failures"] = rep.get("failures") if rep else None
+        d["steps"] = rep.get("steps") if rep else None
+        d["serve_steps"] = rep.get("serve_steps") if rep else None
         served = app.store.scalar("SELECT COUNT(*) FROM routes WHERE family_id=? AND outcome='served'", (r["id"],), 0)
-        shadow = app.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='shadow' ORDER BY id DESC LIMIT 200", (r["id"],))
+        # Same samples promotion counts: judged agreements and disagreements, not errors.
+        shadow = app.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='shadow' AND outcome IN "
+                             "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 200", (r["id"],))
         d["served"] = served
         d["shadow_n"] = len(shadow)
         d["shadow_agree"] = sum(1 for x in shadow if x["outcome"] == "shadow_agree")

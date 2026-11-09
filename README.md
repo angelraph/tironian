@@ -87,6 +87,7 @@ Ollama on the CPU. The family is "count the files of a type in a folder".
 | Live request | First step written by the student in 6.2 s, answer by my usual model | [live scene](media/live.jpg) |
 | Student unreachable | My usual model answered, nothing shown to me, logged as a fallback | [live scene](media/live.jpg) |
 | Folders it never trained on (`C:\Windows`, `C:\Program Files`, `C:\ProgramData`) | First steps **5 of 13**: it rewrote those paths as `$HOME/...`. Taken off duty automatically | [changelog](https://tironian.vercel.app/changelog) |
+| v5, trained with whole folder trees held out | Every path right now. First steps **44 of 51** on four trees it never saw, lower bound 74%: **not passed yet**. The 7 misses were judgment calls (counting subfolders or not) | [changelog](https://tironian.vercel.app/changelog) |
 
 The held-out steps include 62 from sessions recorded after training, which the student had never
 seen. Most sessions were seeded with [`scripts/seed_sessions.py`](scripts/seed_sessions.py), which

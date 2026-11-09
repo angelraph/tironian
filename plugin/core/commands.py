@@ -18,6 +18,7 @@ HELP = """Tironian: your own small model, learned from your own work.
 /tironian bad [note]      this answer was wrong (never trained on; demotes a student)
 /tironian off | on        stop / resume learning from this conversation
 /tironian forget          forget this conversation exactly, including from any student trained on it
+/tironian passport [student]  where a student came from and what it has proven, sealed
 /tironian train <family>  build the dataset and show the cost before training
 /tironian shadow|promote|demote <family>
 /tironian why             why the last request did or didn't go to your student"""
@@ -181,6 +182,16 @@ def handle(app: App, raw: str, *, session_id: str = "", platform: str = "", ask:
                 return "Run this inside the conversation to forget, or give its session id."
             app.engine.exclude_session(target, "forgotten")
             return forget_text(app, target)
+        if cmd == "passport":
+            from . import passport
+            sid = arg
+            if not sid:
+                row = app.store.one("SELECT student_id FROM families WHERE student_id IS NOT NULL "
+                                    "ORDER BY (status='live') DESC, updated_at DESC LIMIT 1")
+                sid = row["student_id"] if row else None
+            if not sid:
+                return "No trained student yet, so there's no passport to show."
+            return passport.markdown(passport.build(app.store, sid))
         if cmd in ("shadow", "promote", "demote"):
             return set_status(app, cmd, arg)
         if cmd == "train":

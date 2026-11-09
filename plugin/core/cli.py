@@ -148,6 +148,24 @@ def run(args: Any) -> int:
     elif cmd == "export":
         ds = pipeline.build_dataset(app.store, s, args.family, args.out)
         _p(f"Wrote {ds.n_train + ds.n_heldout} examples to {ds.train_path.parent} (sha256 {ds.sha256[:12]}…)")
+    elif cmd == "passport":
+        from . import passport
+        if args.verify:
+            ok, msg = passport.verify(json.loads(args.verify.read_text(encoding="utf-8-sig")))
+            _p(("Valid: " if ok else "INVALID: ") + msg)
+            return 0 if ok else 1
+        if not args.student:
+            _p("Usage: hermes tironian passport <student>  (see `hermes tironian students`)")
+            return 1
+        doc = passport.build(app.store, args.student)
+        row = app.store.one("SELECT gguf_path FROM students WHERE id=?", (args.student,))
+        out = args.out or Path(row["gguf_path"]).parent
+        out.mkdir(parents=True, exist_ok=True)
+        jp, mp = out / f"{args.student}.passport.json", out / f"{args.student}.passport.md"
+        jp.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+        mp.write_text(passport.markdown(doc), encoding="utf-8")
+        _p(passport.markdown(doc))
+        _p(f"\nWrote {jp} and {mp}")
     elif cmd == "forget":
         _p(commands.forget_text(app, args.session))
     elif cmd == "purge":

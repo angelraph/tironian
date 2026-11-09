@@ -49,6 +49,9 @@ def run(args: Any) -> int:
     s = app.settings()
     if cmd == "status":
         _p(commands.status_text(app))
+    elif cmd == "demo":
+        from .demo import run as run_demo
+        run_demo(app.data_dir, _p)
     elif cmd == "import":
         res = pipeline.import_history(app.store, app.state_db, app.redactor, since_days=args.days)
         fams = pipeline.rebuild_families(app.store, s)

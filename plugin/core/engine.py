@@ -394,7 +394,7 @@ class Engine:
             return None
         # Match the way families were built, minus what can't be known yet: which tools the turn
         # will use. Both sides are compared on the request's words only.
-        feats = fam.without_common(fam.features(st.user_text), getattr(self, "_common", frozenset()))
+        feats = fam.task_features(fam.features(st.user_text), getattr(self, "_common", frozenset()))
         m = fam.match(feats, [p.family for p in promoted], text_only=True)
         if m.family_id is None or m.similarity < s.route_confidence_min or m.margin < s.route_margin_min:
             return None

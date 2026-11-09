@@ -19,6 +19,7 @@ def run(args: Any) -> int:
 def setup(sub: Any) -> None:
     sp = sub.add_subparsers(dest="tironian_cmd")
     sp.add_parser("status", help="What's learned, what's served locally, savings")
+    sp.add_parser("demo", help="The whole loop in half a minute, offline, on scripted history and models")
     imp = sp.add_parser("import", help="Read Hermes history (read-only) and rebuild task families")
     imp.add_argument("--days", type=int, default=90)
     sp.add_parser("report", help="Recurring tasks and spend in your history")

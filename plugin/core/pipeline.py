@@ -180,6 +180,9 @@ def rebuild_families(store: Store, settings: Settings) -> list[dict[str, Any]]:
     tools_by_turn: dict[str, list[str]] = {}
     for r in store.q("SELECT turn_id, name FROM tool_calls ORDER BY created_at"):
         tools_by_turn.setdefault(r["turn_id"], []).append(r["name"] or "")
+    # "thanks", "ok great" and the like answer the previous turn; they are not tasks to learn.
+    from .grade import ACCEPT
+    rows = [r for r in rows if not (ACCEPT.search(r["user_text"] or "") and len((r["user_text"] or "").split()) <= 4)]
     items = [fam.Item(r["id"], r["user_text"], tools_by_turn.get(r["id"], [])) for r in rows]
     labels = {r["id"]: r["label"] for r in rows}
     common = fam.common_features([fam.features(i.user_text, i.tools, i.skill) for i in items])
@@ -197,8 +200,8 @@ def rebuild_families(store: Store, settings: Settings) -> list[dict[str, Any]]:
     # match is on shared members, measured against both sides so a one-request family can't
     # hand its id to a big one.
     def _content(fs: Any) -> frozenset[str]:
-        return fam.without_common(frozenset(x for x in fs if not x.startswith(("<", "T:", "S:"))
-                                            and x not in fam._PHRASING), common)
+        return fam.task_features(frozenset(x for x in fs if not x.startswith(("<", "T:", "S:"))
+                                           and x not in fam._PHRASING), common)
 
     pairs: list[tuple[float, int, str]] = []
     for i, f in enumerate(clusters):
@@ -551,9 +554,12 @@ def savings(store: Store) -> dict[str, Any]:
         if not routed:
             continue
         served = sum(1 for r in routed if r["outcome"] == "served")
+        # Your model's real first-step prompts for this task: from the family's graded turns and
+        # from requests routed to it (shadow, spot checks, fallbacks), which may not be graded yet.
         avg_in = store.scalar(
-            "SELECT AVG(d.in_tok) FROM decisions d JOIN turns t ON t.id=d.turn_id WHERE t.family_id=? "
-            "AND d.served_by='teacher' AND d.call_idx=0 AND d.in_tok IS NOT NULL", (f["id"],), 0) or 0
+            "SELECT AVG(d.in_tok) FROM decisions d WHERE d.served_by='teacher' AND d.call_idx=0 "
+            "AND d.in_tok IS NOT NULL AND (d.turn_id IN (SELECT id FROM turns WHERE family_id=?) "
+            "OR d.turn_id IN (SELECT turn_id FROM routes WHERE family_id=?))", (f["id"], f["id"]), 0) or 0
         tokens = int(round(served * float(avg_in)))
         usd = float(sum(r["saved_usd"] or 0 for r in routed))
         out["families"][f["id"]] = {"name": f["name"], "served": served, "routed": len(routed),

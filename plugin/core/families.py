@@ -134,9 +134,21 @@ def without_common(feats: frozenset[str], common: frozenset[str]) -> frozenset[s
                      and not (" " in f and any(w in common for w in f.split(" "))))
 
 
+def task_features(raw: frozenset[str], common: frozenset[str]) -> frozenset[str]:
+    """What grouping and routing both compare: a request's features minus the common ones.
+
+    When one task is nearly all of someone's history, all of its words are "common". Taking them
+    away would leave nothing, so such a request keeps its own words (tools aside). Grouping and
+    routing must use this same rule, or a family could be built that requests can never match.
+    """
+    return without_common(raw, common) or frozenset(f for f in raw if not f.startswith(("T:", "S:")))
+
+
 def features(user_text: str, tools: Sequence[str] = (), skill: str | None = None) -> frozenset[str]:
     """Unigrams + bigrams of the normalized request, plus the first tools used and any skill."""
-    words = [w for w in _WORD.findall(normalize(user_text)) if w not in _STOP and w not in _PHRASING]
+    # Single letters are leftovers of contractions ("what's" gives "s"), not words.
+    words = [w for w in _WORD.findall(normalize(user_text))
+             if w not in _STOP and w not in _PHRASING and (len(w) > 1 or w.startswith("<"))]
     # A placeholder on its own ("<n>", "<ext>") is an argument, not a task: "the 5 largest" and
     # "the 5 newest" share the number, not the job. Word pairs carry order ("largest files"),
     # but a pair with a placeholder in it only says where the argument went. Both are left out.
@@ -262,7 +274,7 @@ def _group(ids: Sequence[str], all_feats: Sequence[frozenset[str]], tools: Seque
            merge_at: float | None) -> list[Family]:
     families: list[Family] = []
     for tid, raw, used in zip(ids, all_feats, tools):
-        feats = without_common(raw, common)
+        feats = task_features(raw, common)
         if not feats:
             continue
         best, best_sim = None, 0.0

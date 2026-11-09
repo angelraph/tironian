@@ -114,6 +114,27 @@ def test_same_task_on_another_folder_is_not_asking_again():
     assert "user_repeated" not in other.reasons and not other.hard_negative
 
 
+def test_a_history_that_is_nearly_one_task_still_groups_and_routes():
+    """Found by the demo: when one task is 97% of history, all its words were dropped as common,
+    so the family vanished, and routing (which strips the same way) could never match it."""
+    texts = [f"what's using disk space in ~/{f}" for f in ("Downloads", "Videos", "Music")] * 30
+    texts += ["write a haiku about autumn", "translate good morning to French"]
+    items = [families.Item(f"t{i}", t, ["terminal"]) for i, t in enumerate(texts)]
+    common = families.common_features([families.features(i.user_text, i.tools) for i in items])
+    fams = families.cluster(items, common=common)
+    disk = max(fams, key=lambda f: len(f.members))
+    assert len(disk.members) == 90 and "disk" in disk.label()
+    probe = families.task_features(families.features("what's using disk space in ~/Pictures"), common)
+    m = families.match(probe, fams, text_only=True)
+    assert m.family_id == disk.id and m.similarity > 0.5
+
+
+def test_acknowledgements_are_not_tasks():
+    from tironian.core.grade import ACCEPT
+    assert ACCEPT.search("thanks") and ACCEPT.search("Perfect, thank you")
+    assert not ACCEPT.search("count the pdf files")
+
+
 def test_grade_signals():
     good = grade.grade(grade.TurnFacts("list files", [grade.ToolOutcome("terminal")], "thanks!", True))
     assert good.label == "good"

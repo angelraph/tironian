@@ -10,6 +10,7 @@ from .app import App
 
 HELP = """Tironian: your own small model, learned from your own work.
 
+/tironian demo            the whole loop in half a minute, offline (start here)
 /tironian                 status: what's learned, what's served locally, savings
 /tironian report          the report on your history (recurring tasks, spend)
 /tironian families        task families and what each needs
@@ -143,6 +144,11 @@ def handle(app: App, raw: str, *, session_id: str = "", platform: str = "", ask:
             return status_text(app)
         if cmd == "help":
             return HELP
+        if cmd == "demo":
+            from .demo import run as run_demo
+            lines: list[str] = []
+            run_demo(app.data_dir, lines.append)
+            return "\n".join(lines)
         if cmd == "report":
             if not app.store.meta_get("first_import_done"):
                 app.first_run()

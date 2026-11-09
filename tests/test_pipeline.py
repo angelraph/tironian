@@ -129,6 +129,20 @@ def test_dead_driver_fails_the_job_and_frees_the_trainer(app_factory, tmp_path):
     assert jobs.active_job(app.store) is None
 
 
+def test_the_demo_runs_end_to_end_offline(app_factory):
+    """`/tironian demo`: weak student refused, good one passes, shadow, live, fallback."""
+    from tironian.core import demo
+    app = app_factory()
+    lines = []
+    out = demo.run(app.data_dir, lines.append)
+    text = "\n".join(lines)
+    assert out["weak_passed"] is False and out["good_passed"] is True
+    assert out["live"] == "served" and out["fallback"] == "fb_invalid"
+    assert "GATE REFUSED" in text and "GATE PASSED" in text and "live." in text
+    # It works in its own folder and leaves the real database alone.
+    assert app.store.scalar("SELECT COUNT(*) FROM turns", (), 0) == 0
+
+
 def test_trained_family_keeps_its_id(app_factory):
     app = app_factory()
     make_state_db(app.state_db)

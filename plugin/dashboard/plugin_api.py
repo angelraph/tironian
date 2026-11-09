@@ -115,6 +115,16 @@ def families() -> dict[str, Any]:
     return {"families": out, "min_family_turns": app.settings().min_family_turns}
 
 
+@router.post("/demo")
+def run_demo() -> dict[str, Any]:
+    """The offline demo, in its own folder. Never touches the user's real data."""
+    app = _app()
+    demo = importlib.import_module(f"{_pkg().__name__}.core.demo")
+    lines: list[str] = []
+    out = demo.run(app.data_dir, lines.append)
+    return {"lines": lines, "result": out}
+
+
 @router.post("/families/{family_id}/mode")
 def set_mode(family_id: str, body: dict[str, Any]) -> dict[str, Any]:
     app = _app()

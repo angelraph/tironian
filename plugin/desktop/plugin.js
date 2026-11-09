@@ -206,6 +206,11 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
 function TironianPage({ ctx }) {
   const [data, error, reload] = useSummary(ctx)
   const [fams, setFams] = useState({ families: [], min_family_turns: 25 })
+  const [demo, setDemo] = useState(null)   // null, 'running', or the demo's lines
+  const runDemo = () => {
+    setDemo('running')
+    ctx.rest('/demo', { method: 'POST' }).then(r => setDemo(r.lines || []), e => setDemo([`The demo failed: ${e?.message || e}`]))
+  }
   const loadFams = useCallback(() => { ctx.rest('/families').then(setFams, () => {}) }, [ctx])
   useEffect(() => { loadFams(); return ctx.setInterval(loadFams, 8000) }, [ctx, loadFams])
   const refreshAll = () => { reload(); loadFams() }
@@ -240,13 +245,35 @@ function TironianPage({ ctx }) {
                 })
               ]
             }),
-            jsx(Button, {
-              size: 'sm', variant: 'ghost',
-              onClick: () => ctx.rest('/refresh', { method: 'POST' }).then(refreshAll),
-              children: 'Re-read history'
+            jsxs('div', {
+              style: { display: 'flex', gap: 8 },
+              children: [
+                jsx(Button, { size: 'sm', onClick: runDemo, disabled: demo === 'running',
+                  children: demo === 'running' ? 'Running the demo…' : 'Run the demo' }),
+                jsx(Button, {
+                  size: 'sm', variant: 'ghost',
+                  onClick: () => ctx.rest('/refresh', { method: 'POST' }).then(refreshAll),
+                  children: 'Re-read history'
+                })
+              ]
             })
           ]
         }),
+        Array.isArray(demo)
+          ? jsxs('section', {
+              style: { border: '1px solid var(--ui-stroke-secondary)', borderRadius: 8, padding: '10px 12px' },
+              children: [
+                jsxs('div', {
+                  style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+                  children: [
+                    jsx('div', { style: { fontSize: 13, fontWeight: 500 }, children: 'Demo: real Tironian code, scripted history and models, in its own folder' }),
+                    jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => setDemo(null), children: 'Close' })
+                  ]
+                }),
+                jsx('pre', { style: { margin: 0, fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: 'var(--ui-text-secondary)', maxHeight: 420, overflowY: 'auto' }, children: demo.join('\n') })
+              ]
+            })
+          : null,
         jsxs('div', {
           className: 'flex flex-wrap gap-3',
           children: [

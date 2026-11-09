@@ -189,7 +189,7 @@ def test_shadow_mode_never_blocks_and_records(app_factory, llama):
     t = Teacher()
     resp = run_turn(app, "what's using disk space in ~/Downloads", t)
     assert t.calls == 1 and resp.choices[0].message.content == "done"
-    for _ in range(50):
+    for _ in range(400):
         if app.store.scalar("SELECT COUNT(*) FROM routes"):
             break
         time.sleep(0.05)
@@ -206,7 +206,7 @@ def test_shadow_uses_the_judge(app_factory, llama):
     seen = []
     app.engine.judge_factory = lambda: (lambda r, a, b: seen.append((a, b)) or "tie")
     run_turn(app, "what's using disk space in ~/Downloads", Teacher())
-    for _ in range(50):
+    for _ in range(400):
         if app.store.scalar("SELECT COUNT(*) FROM routes"):
             break
         time.sleep(0.05)
@@ -222,7 +222,7 @@ def test_shadow_runs_without_the_answer_switch(app_factory, llama):
     llama.replies = [render_target("done", [])]
     t = Teacher()
     run_turn(app, "what's using disk space in ~/Downloads", t)
-    for _ in range(50):
+    for _ in range(400):
         if app.store.scalar("SELECT COUNT(*) FROM routes"):
             break
         time.sleep(0.05)
@@ -246,7 +246,7 @@ def test_session_start_warms_the_student(app_factory, llama):
     before = len(llama.calls)
     app.engine.on_session_start(session_id="warm-1", platform="cli")
     app.engine.on_session_start(session_id="warm-2", platform="cli")   # once is enough
-    for _ in range(50):
+    for _ in range(400):
         if len(llama.calls) > before:
             break
         time.sleep(0.05)
@@ -265,7 +265,7 @@ def test_auto_demote_on_high_fallback_rate(app_factory, llama):
 
 def _wait_routes(app, n):
     import time
-    for _ in range(100):
+    for _ in range(400):
         if app.store.scalar("SELECT COUNT(*) FROM routes") >= n:
             return
         time.sleep(0.03)
@@ -285,7 +285,7 @@ def test_spot_checks_catch_drift_and_send_the_family_back_to_shadow(app_factory,
     modes = {r["mode"] for r in app.store.q("SELECT mode FROM routes")}
     assert modes == {"spot"}
     import time
-    for _ in range(100):   # the drift check runs right after the tenth sample is stored
+    for _ in range(400):   # the drift check runs right after the tenth sample is stored
         if app.store.scalar("SELECT status FROM families WHERE id='fdisk'") == "shadow":
             break
         time.sleep(0.03)

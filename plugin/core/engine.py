@@ -20,6 +20,7 @@ import hashlib
 import json
 import logging
 import queue
+import re
 import threading
 import time
 from collections import OrderedDict
@@ -585,6 +586,67 @@ class Engine:
                 self._shadow_busy.release()
 
         threading.Thread(target=run, name="tironian-shadow", daemon=True).start()
+
+    def transform_llm_output(self, *, response_text: str = "", session_id: str = "", platform: str = "",
+                             **_: Any) -> str | None:
+        """Mark a reply whose step your own model answered, with the evidence it earned.
+
+        On Hermes Desktop this adds a ``::tironian-proof{...}`` paragraph that the Desktop half
+        renders as a small card. Elsewhere it adds nothing unless ``answer_badge`` is "always",
+        and then a plain one-line note, never a raw directive.
+        """
+        s = self.settings()
+        mode = str(getattr(s, "answer_badge", "desktop") or "desktop")
+        if mode == "off" or not response_text:
+            return None
+        desktop = str(platform or "").lower() in ("desktop", "webapp")
+        if mode == "desktop" and not desktop:
+            return None
+        st = self._turn(self._session_turn.get(str(session_id or "")))
+        if st is None or not st.served_by_student or not st.route_family:
+            return None
+        proof = self.proof(st.route_family)
+        if not proof:
+            return None
+        if desktop:
+            attrs = " ".join(f'{k}="{v}"' for k, v in proof.items())
+            return f"{response_text}\n\n::tironian-proof{{{attrs}}}"
+        return (f"{response_text}\n\n_Part of this answer came from your own model ({proof['family']}, "
+                f"proven {proof['proven']} on sessions it never saw)._")
+
+    def proof(self, family_id: str) -> dict[str, str] | None:
+        """The evidence behind a live student, as short strings safe for a directive."""
+        f = self.store.one("SELECT f.name, f.student_id FROM families f WHERE f.id=?", (family_id,))
+        if f is None or not f["student_id"]:
+            return None
+        e = self.store.one("SELECT report_json FROM evals WHERE family_id=? AND student_id=? AND gate_passed=1 "
+                           "ORDER BY created_at DESC LIMIT 1", (family_id, f["student_id"]))
+        if e is None:
+            return None
+        try:
+            rep = json.loads(e["report_json"] or "{}")
+        except ValueError:
+            return None
+        serve = rep.get("serve_steps") or []
+        steps = rep.get("steps") or {}
+        k = max(serve, key=lambda x: (steps.get(x) or {}).get("wilson_lo", 0)) if serve else None
+        d = steps.get(k) if k else None
+        if not d:
+            return None
+        shadow = self.store.q("SELECT outcome FROM routes WHERE family_id=? AND mode='shadow' AND outcome IN "
+                              "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 200", (family_id,))
+        avg_in = self.store.scalar(
+            "SELECT AVG(d.in_tok) FROM decisions d WHERE d.served_by='teacher' AND d.call_idx=0 AND d.in_tok IS NOT NULL "
+            "AND (d.turn_id IN (SELECT id FROM turns WHERE family_id=?) OR d.turn_id IN "
+            "(SELECT turn_id FROM routes WHERE family_id=?))", (family_id, family_id), 0) or 0
+
+        def clean(x: Any) -> str:
+            return re.sub(r'[^\w .,/:-]', "", str(x))[:60]
+        return {"family": clean(f["name"]), "student": clean(f["student_id"]),
+                "steps": "first steps" if k == "first" else "steps after a tool result",
+                "proven": f"{int(d['passed'])}/{int(d['n'])}", "bound": str(int(round(float(d["wilson_lo"]) * 100))),
+                "shadow": f"{sum(r['outcome'] == 'shadow_agree' for r in shadow)}/{len(shadow)}" if shadow else "",
+                "tokens": str(int(round(float(avg_in))))}
 
     def _spot_check(self, turn_id: str, s: Settings) -> bool:
         """Pick about `spot_check_rate` of a live family's requests, the same way for the same turn."""

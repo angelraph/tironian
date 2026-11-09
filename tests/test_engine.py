@@ -343,6 +343,33 @@ def test_savings_count_steps_and_cloud_tokens_kept_local(app_factory, llama):
     assert fam["avg_prompt_tokens"] == 12000 and sv["tokens_avoided"] == 36000
 
 
+def _passed_eval(app):
+    report = {"serve_steps": ["first"], "steps": {"first": {"passed": 51, "n": 51, "wilson_lo": 0.93}}}
+    with app.store.tx() as c:
+        c.execute("INSERT INTO evals(id, student_id, dataset_id, family_id, n, passed, wilson_lo, wilson_hi, validity, "
+                  "gate_passed, report_json, created_at) VALUES('e1','stu','d','fdisk',51,51,0.93,1,1,1,?,1)",
+                  (json.dumps(report),))
+
+
+def test_a_reply_the_student_helped_with_carries_a_proof_card_on_desktop(app_factory, llama):
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    promote(app, llama)
+    _passed_eval(app)
+    llama.replies = [render_target("", [{"function": {"name": "terminal", "arguments": '{"command": "du -sh ~/Downloads"}'}}])]
+    run_turn(app, "what's using disk space in ~/Downloads", Teacher(), turn="p1")
+    out = app.engine.transform_llm_output(response_text="Downloads holds 1.2G.", session_id="s1", platform="desktop")
+    assert out.startswith("Downloads holds 1.2G.\n\n::tironian-proof{")
+    assert 'proven="51/51"' in out and 'bound="93"' in out
+    # Not on other platforms by default, and never a raw directive there.
+    assert app.engine.transform_llm_output(response_text="x", session_id="s1", platform="cli") is None
+
+
+def test_no_card_when_your_model_answered_alone(app_factory, llama):
+    app = app_factory(routing_enabled=True, student_endpoint=llama.url)
+    run_turn(app, "write a haiku about autumn", Teacher(), turn="h1")
+    assert app.engine.transform_llm_output(response_text="leaves fall", session_id="s1", platform="desktop") is None
+
+
 def test_one_correction_of_a_student_answer_sends_it_back_to_shadow(app_factory, llama):
     app = app_factory(routing_enabled=True, student_endpoint=llama.url)
     promote(app, llama)

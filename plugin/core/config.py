@@ -30,6 +30,7 @@ class Settings:
     max_usd_per_run: float = 1.0
     promotion_threshold: float = 0.85
     spot_check_rate: float = 0.1              # share of a live family's requests double-checked for drift
+    answer_badge: str = "desktop"             # desktop | always | off: mark replies your own model helped write
     min_eval_n: int = 30
     validity_floor: float = 0.98
     min_family_turns: int = 25

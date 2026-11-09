@@ -66,6 +66,17 @@ def register(ctx: Any) -> None:
 
     ctx.register_middleware("llm_execution", llm_execution)
 
+    def transform_llm_output(**kw: Any) -> Any:
+        # A transform hook returns its value, so it can't use the fail-open wrapper above (which
+        # always returns None). Any failure here leaves the reply exactly as it was.
+        try:
+            return app().engine.transform_llm_output(**kw)
+        except Exception:
+            log.debug("tironian transform_llm_output failed", exc_info=True)
+            return None
+
+    ctx.register_hook("transform_llm_output", transform_llm_output)
+
     def slash(raw: str, *, session_id: str = "", platform: str = "", **kw: Any) -> str:
         from .core import commands
         a = app()

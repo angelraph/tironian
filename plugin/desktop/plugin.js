@@ -1,6 +1,10 @@
 // Tironian's page and status-bar chip for Hermes Desktop.
 // Loaded uncompiled by the Desktop plugin SDK, so it uses jsx() calls instead of JSX syntax.
+import * as sdk from '@hermes/plugin-sdk'
 import { Button, EmptyState, ROUTES_AREA, SIDEBAR_NAV_AREA, STATUSBAR_AREAS, host } from '@hermes/plugin-sdk'
+// Optional: Desktop builds without transcript directives don't export it, and a named import
+// of a missing export would stop the whole plugin from loading.
+const TRANSCRIPT_DIRECTIVE_AREA = sdk.TRANSCRIPT_DIRECTIVE_AREA
 import { useCallback, useEffect, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
@@ -319,6 +323,37 @@ function TironianPage({ ctx }) {
   })
 }
 
+// The card under a reply whose step your own model answered. Attributes come from model-visible
+// text, so each one is checked and the card renders nothing if any looks wrong.
+function ProofCard({ attrs }) {
+  const a = attrs || {}
+  const frac = /^\d{1,4}\/\d{1,4}$/
+  if (!frac.test(a.proven || '') || !/^\d{1,3}$/.test(a.bound || '') || (a.shadow && !frac.test(a.shadow))) return null
+  const name = String(a.family || '').slice(0, 60)
+  const tokens = /^\d{1,7}$/.test(a.tokens || '') ? Number(a.tokens) : 0
+  const bits = [
+    `proven ${a.proven} on ${a.steps === 'first steps' ? 'first steps' : 'steps'} it never saw (lower bound ${a.bound}%)`,
+    a.shadow ? `agreed ${a.shadow} in shadow mode` : null,
+    tokens ? `about ${tokens.toLocaleString()} cloud tokens kept local` : null
+  ].filter(Boolean)
+  return jsxs('div', {
+    style: { display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', marginTop: 4, borderRadius: 8,
+      border: '1px solid var(--ui-stroke-secondary)', background: 'var(--ui-bg-secondary, transparent)', fontSize: 12.5, lineHeight: 1.45 },
+    children: [
+      jsx('span', { 'aria-hidden': true, style: { fontSize: 14, lineHeight: '18px' }, children: '⚡' }),
+      jsxs('div', {
+        children: [
+          jsxs('div', { style: { fontWeight: 500 }, children: [`Answered in part by your own model`, name ? ` · ${name}` : ''] }),
+          jsx('div', { style: { color: 'var(--ui-text-tertiary)' }, children: bits.join(' · ') }),
+          jsx('button', { type: 'button', onClick: () => host.navigate(PATH),
+            style: { marginTop: 4, padding: 0, border: 0, background: 'none', color: 'var(--ui-accent)', cursor: 'pointer', fontSize: 12 },
+            children: 'See the evidence' })
+        ]
+      })
+    ]
+  })
+}
+
 function Chip({ ctx }) {
   const [data] = useSummary(ctx)
   if (!data) return null
@@ -341,10 +376,16 @@ export default {
   id: 'tironian',
   name: 'Tironian',
   register(ctx) {
-    ctx.registerMany([
+    const items = [
       { id: 'page', area: ROUTES_AREA, data: { path: PATH }, render: () => jsx(TironianPage, { ctx }) },
       { id: 'nav', area: SIDEBAR_NAV_AREA, data: { path: PATH, label: 'Tironian', codicon: 'mortar-board' } },
       { id: 'chip', area: STATUSBAR_AREAS.right, order: 140, render: () => jsx(Chip, { ctx }) }
-    ])
+    ]
+    // Older Desktop builds have no transcript directives; the page and chip still work there.
+    if (TRANSCRIPT_DIRECTIVE_AREA) {
+      items.push({ id: 'proof', area: TRANSCRIPT_DIRECTIVE_AREA,
+        data: { name: 'tironian-proof', render: ({ attrs }) => jsx(ProofCard, { attrs }) } })
+    }
+    ctx.registerMany(items)
   }
 }

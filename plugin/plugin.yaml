@@ -23,6 +23,7 @@ provides_hooks:
   - on_session_delete
   - post_approval_response
   - subagent_start
+  - transform_llm_output
 # `hermes plugins validate` checks this list (the v0.22.7 loader still logs it as an unknown field).
 provides_middleware:
   - llm_execution
@@ -42,6 +43,7 @@ config_schema:
   modal_gpu: {type: str, choices: [L4, A10G], default: L4}
   max_usd_per_run: {type: float, default: 1.0, label: "Hard cost cap per training run (USD)"}
   promotion_threshold: {type: float, default: 0.85, description: "Lower 95% bound of the held-out pass rate a student must clear."}
+  answer_badge: {type: str, choices: [desktop, always, off], default: desktop, label: "Mark answers your model helped with", description: "desktop: a small card under the reply in Hermes Desktop, with the evidence the student earned. always: also a one-line note on other platforms. off: never."}
   spot_check_rate: {type: float, default: 0.1, label: "Spot checks", description: "Share of a live family's requests your usual model still answers while the student is judged in the background. If it agrees on fewer than the promotion threshold of its last 20, it goes back to shadow mode. 0 turns spot checks off."}
   min_eval_n: {type: int, default: 30}
   validity_floor: {type: float, default: 0.98}

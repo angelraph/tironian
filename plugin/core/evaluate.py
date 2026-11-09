@@ -253,9 +253,9 @@ def scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], *, threshold
     if n < min_n:
         ok, why = False, f"needs ≥{min_n} held-out examples (has {n})"
     elif validity < validity_floor:
-        ok, why = False, f"format validity {validity:.0%} < {validity_floor:.0%}"
+        ok, why = False, f"format validity {_below(validity, validity_floor)} < {validity_floor:.0%}"
     elif lo < threshold:
-        ok, why = False, f"lower bound {lo:.0%} < {threshold:.0%}"
+        ok, why = False, f"lower bound {_below(lo, threshold)} < {threshold:.0%}"
     else:
         ok, why = True, f"lower bound {lo:.0%} ≥ {threshold:.0%}"
     return Scorecard(
@@ -308,4 +308,13 @@ def gated_scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], kinds:
         sc.serve_steps = [k for k in STEP_KINDS if k in sc.serve_steps]
         if not sc.serve_steps:
             sc.gate_passed, sc.gate_reason = False, "no step kind is good enough on its own"
+    elif sc.steps:
+        # Say why each kind failed, not just the first overall check that tripped.
+        sc.gate_reason = "; ".join(f"{k} steps: {d['gate_reason']}" for k, d in sc.steps.items())
     return sc
+
+
+def _below(x: float, floor: float) -> str:
+    """``x`` as a percentage that never rounds up to ``floor`` when it is below it."""
+    s = f"{x:.0%}"
+    return s if s != f"{floor:.0%}" else f"{x:.1%}"

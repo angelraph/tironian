@@ -53,7 +53,9 @@ _SYNONYMS: list[tuple[re.Pattern[str], str]] = [(re.compile(rf"\b(?:{a})\b"), b)
 _LABEL_FILLER = frozenset("""
 use using used check checking show tell help want need get see look run terminal command commands
 can could would should give make let quickly please also just
-""".split())
+windows program programdata microsoft common start menu fonts media nt users public
+desktop documents downloads music pictures videos appdata local temp onedrive
+""".split())   # folder names say where, not what: they never name a task
 
 
 # Words about how a request is phrased, not what it asks for. "Check with the terminal" and
@@ -360,6 +362,9 @@ def place(text: str) -> str:
     whether a student learned the job or only learned my usual paths.
     """
     t = text or ""
+    m = re.search(r"\b([a-z]):[\\/]+program ?files(?: \(x86\))?", t, re.I)
+    if m:
+        return f"{m.group(1).lower()}:/program files"
     m = _WIN_PATH.search(t)
     if m:
         drive = m.group(1).lower()

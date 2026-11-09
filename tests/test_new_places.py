@@ -26,6 +26,18 @@ def test_whole_folder_trees_are_held_out():
     assert not held_trees & train_trees     # no tree is on both sides
 
 
+def test_the_test_keeps_both_home_and_other_trees():
+    trees = ["music", "videos", "downloads", "desktop", "c:/windows", "c:/program files", "c:/tools", "d:/data"]
+    places = {f"s{i:02}": trees[i % len(trees)] for i in range(80)}
+    sessions = sorted(places)
+    held = _hold_out_places(sessions, places, n_hold=16, cap=32, rng=random.Random(3))
+    held_trees = {places[s] for s in held}
+    train_trees = {places[s] for s in sessions if s not in held}
+    is_home = {"music", "videos", "downloads", "desktop"}
+    assert held_trees & is_home and held_trees - is_home       # the test has both kinds
+    assert train_trees & is_home and train_trees - is_home     # so does training
+
+
 def test_too_few_trees_falls_back_to_the_session_split():
     places = {f"s{i}": "music" if i % 2 else "videos" for i in range(20)}
     assert _hold_out_places(sorted(places), places, 4, 8, random.Random(1)) is None

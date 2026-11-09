@@ -171,11 +171,17 @@ def run(base: Path, say: Callable[[str], None]) -> dict[str, Any]:
         def train() -> dict[str, Any]:
             prep = app.prepare_training(fam["id"])
             jid = app.start_training(fam["id"], prep["dataset_id"], backend="dry-run")
-            for _ in range(600):
-                if (app.poll_job(jid) or {}).get("status") in jobs.TERMINAL:
+            # A dry run takes a second or two, but a busy machine can stretch it, so wait up to 3 minutes.
+            deadline = time.monotonic() + 180
+            st = None
+            while time.monotonic() < deadline:
+                done = (app.poll_job(jid) or {}).get("status") in jobs.TERMINAL
+                st = app.store.one("SELECT * FROM students WHERE job_id=?", (jid,))
+                if st is not None or done:
                     break
                 time.sleep(0.05)
-            st = app.store.one("SELECT * FROM students WHERE job_id=?", (jid,))
+            if st is None:
+                raise RuntimeError(f"the demo's training run didn't finish ({(app.poll_job(jid) or {}).get('message')})")
             models.model = st["model_id"]
             say(f"   trained {st['model_id']} on {prep['n_train']} examples, {prep['n_heldout']} held out "
                 f"(dry run: on a real machine this is a GPU job, about $0.15)")
@@ -215,7 +221,7 @@ def run(base: Path, say: Callable[[str], None]) -> dict[str, Any]:
         say("\n5. Live: a matching request")
         teacher = _Teacher()
         _turn(app, "what's using disk space in ~/Music", teacher, "live1")
-        r = app.store.one("SELECT outcome, latency_ms FROM routes WHERE turn_id='live1'")
+        r = _route(app, "live1")
         say(f"   route: {r['outcome']} by your student in {r['latency_ms']} ms; your model called {teacher.calls} times")
         out["live"] = r["outcome"]
 
@@ -223,7 +229,7 @@ def run(base: Path, say: Callable[[str], None]) -> dict[str, Any]:
         models.mode = "broken"
         teacher = _Teacher()
         _turn(app, "what's using disk space in ~/Videos", teacher, "live2")
-        r = app.store.one("SELECT outcome FROM routes WHERE turn_id='live2'")
+        r = _route(app, "live2")
         say(f"   route: {r['outcome']}; your model answered instead ({teacher.calls} call), nothing shown to you")
         out["fallback"] = r["outcome"]
 
@@ -236,6 +242,17 @@ def run(base: Path, say: Callable[[str], None]) -> dict[str, Any]:
         return out
     finally:
         models.close()
+
+
+def _route(app: Any, turn: str, wait_s: float = 30.0) -> Any:
+    """The route record for a demo turn. Routes are written as the turn finishes, which a busy
+    machine can delay, so wait a little rather than read a row that isn't there yet."""
+    deadline = time.monotonic() + wait_s
+    while True:
+        r = app.store.one("SELECT outcome, latency_ms FROM routes WHERE turn_id=? ORDER BY id DESC LIMIT 1", (turn,))
+        if r is not None or time.monotonic() > deadline:
+            return r or {"outcome": "not recorded", "latency_ms": 0}
+        time.sleep(0.05)
 
 
 def _turn(app: Any, user: str, teacher: Callable[[dict[str, Any]], Any], turn: str) -> Any:

@@ -370,6 +370,8 @@ def place(text: str) -> str:
         drive = m.group(1).lower()
         rest = [p.strip(".?!,") for p in re.split(r"[\\/]+", m.group(2)) if p.strip(".?!,")]
         if drive == "c" and rest and rest[0].lower() == "users":
+            if len(rest) >= 2 and rest[1].lower() in ("public", "default", "all users"):
+                return "c:/users/" + rest[1].lower()      # shared folders, not anyone's home
             return rest[2].lower() if len(rest) >= 3 else "home"
         return f"{drive}:/" + (rest[0].lower() if rest else "")
     m = _NIX_PATH.search(t)

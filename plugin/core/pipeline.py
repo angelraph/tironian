@@ -373,8 +373,14 @@ def _hold_out_places(sessions: list[str], places: dict[str, str], n_hold: int, c
             groups.setdefault(places[sid], []).append(sid)
     if len(groups) < 3:
         return None
-    order = sorted(groups)
-    rng.shuffle(order)
+    # Alternate between home folders and other trees (system folders, other drives), so both the
+    # training set and the test keep some of each kind: a test of only home folders would never
+    # catch a student that learned "everything lives under home".
+    home = sorted(p for p in groups if p in fam._HOME_DIRS)
+    other = sorted(p for p in groups if p not in fam._HOME_DIRS)
+    rng.shuffle(home)
+    rng.shuffle(other)
+    order = [p for pair in zip(other, home) for p in pair] + other[len(home):] + home[len(other):]
     held: set[str] = set()
     for p in order:
         if len(held) >= n_hold:

@@ -231,6 +231,8 @@ class Scorecard:
     steps: dict[str, dict[str, Any]] = field(default_factory=dict)
     serve_steps: list[str] = field(default_factory=list)
     fresh: int = 0   # held-out steps from sessions recorded after the dataset was built
+    # Steps on folder trees the student never saw in training, per kind of step, and which trees.
+    new_places: dict[str, Any] = field(default_factory=dict)
 
     @property
     def pass_rate(self) -> float:
@@ -312,6 +314,35 @@ def gated_scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], kinds:
         # Say why each kind failed, not just the first overall check that tripped.
         sc.gate_reason = "; ".join(f"{k} steps: {d['gate_reason']}" for k, d in sc.steps.items())
     return sc
+
+
+def apply_new_places(sc: Scorecard, checks: Sequence[Check], kinds: Sequence[str], places: Sequence[str],
+                     seen: set[str], *, threshold: float, min_n: int) -> None:
+    """Score the steps on folder trees the student never trained on, and let them veto.
+
+    A student can learn my usual paths instead of the job. Steps on new trees are the test of
+    that, so a kind of step that passed overall but does worse than the threshold on at least
+    ``min_n`` new-tree steps stops serving.
+    """
+    new = [i for i, p in enumerate(places) if p and p not in seen]
+    out: dict[str, Any] = {"trees": sorted({places[i] for i in new}), "trained_on": sorted(seen), "steps": {}}
+    for kind in STEP_KINDS:
+        idx = [i for i in new if kinds[i] == kind]
+        if idx:
+            passed = sum(checks[i].passed for i in idx)
+            lo, _hi = wilson(passed, len(idx))
+            out["steps"][kind] = {"n": len(idx), "passed": passed, "wilson_lo": lo}
+    sc.new_places = out
+    vetoed = [k for k in sc.serve_steps if (d := out["steps"].get(k)) and d["n"] >= min_n
+              and d["passed"] / d["n"] < threshold]
+    if vetoed:
+        sc.serve_steps = [k for k in sc.serve_steps if k not in vetoed]
+        why = "; ".join(f"{k} steps on folders it never trained on: {out['steps'][k]['passed']} of "
+                        f"{out['steps'][k]['n']}" for k in vetoed)
+        if not sc.serve_steps:
+            sc.gate_passed, sc.gate_reason = False, why
+        else:
+            sc.gate_reason += f" (not {', '.join(vetoed)}: {why})"
 
 
 def _below(x: float, floor: float) -> str:

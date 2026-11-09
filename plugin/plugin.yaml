@@ -46,6 +46,8 @@ config_schema:
   answer_badge: {type: str, choices: [desktop, always, off], default: desktop, label: "Mark answers your model helped with", description: "desktop: a small card under the reply in Hermes Desktop, with the evidence the student earned. always: also a one-line note on other platforms. off: never."}
   spot_check_rate: {type: float, default: 0.1, label: "Spot checks", description: "Share of a live family's requests your usual model still answers while the student is judged in the background. If it agrees on fewer than the promotion threshold of its last 20, it goes back to shadow mode. 0 turns spot checks off."}
   min_eval_n: {type: int, default: 30}
+  holdout_by: {type: str, choices: [place, session], default: place, label: "Held-out test split", description: "place: whole folder trees and drives are kept out of training, so the test shows whether a student learned the job or just your usual paths. session: only whole conversations are kept out."}
+  new_place_min_n: {type: int, default: 10, description: "Steps on folders a student never trained on needed before a weak result there can stop it serving."}
   validity_floor: {type: float, default: 0.98}
   min_family_turns: {type: int, default: 25}
   route_confidence_min: {type: float, default: 0.55}

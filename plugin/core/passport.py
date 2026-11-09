@@ -78,7 +78,13 @@ def build(store: Store, student_id: str) -> dict[str, Any]:
         family = {"id": fam["id"], "name": fam["name"], "status": fam["status"],
                   "status_reason": store.meta_get(f"status_reason:{fam['id']}") or None,
                   "serving_this_student": fam["student_id"] == st["id"]}
-    body = {"passport": VERSION, "issued": _iso(time.time()), "tool": "tironian", "model": model, "family": family,
+    np = json.loads(store.meta_get(f"new_places:{st['family_id']}") or "{}")
+    new_places = None
+    if np.get("student") == st["id"]:
+        new_places = {"trained_on": np.get("trained_on", []), "new_trees": np.get("trees", []),
+                      "steps": {k: {"passed": d["passed"], "n": d["n"]} for k, d in (np.get("steps") or {}).items()},
+                      "at": _iso(np.get("at"))}
+    body = {"passport": VERSION, "new_folders": new_places, "issued": _iso(time.time()), "tool": "tironian", "model": model, "family": family,
             "training": training, "data": data, "held_out_tests": tests,
             "shadow": tally("shadow"), "spot_checks": tally("spot"), "live": tally("live"),
             "forgotten_sessions": store.meta_get(f"forgotten_in:{st['id']}") is not None}
@@ -116,6 +122,14 @@ def markdown(doc: dict[str, Any]) -> str:
         for k, s in e["steps"].items():
             lines.append(f"  - {k} steps: {s['passed']}/{s['n']}, lower bound {s['lower_bound']:.0%}"
                          f"{', passes' if s['passes'] else ''}")
+    nf = doc.get("new_folders")
+    if nf:
+        lines += ["", "## Folders it never trained on", "",
+                  f"- Trained on: {', '.join(nf['trained_on']) or 'none recorded'}",
+                  f"- Tested on: {', '.join(nf['new_trees']) or 'none yet'}"]
+        for k, s in nf["steps"].items():
+            lines.append(f"  - {k} steps: {s['passed']}/{s['n']}")
+
     def fmt(tally: dict[str, int]) -> str:
         return ", ".join(f"{k} {v}" for k, v in sorted(tally.items())) or "none"
     lines += ["", "## In use", "",

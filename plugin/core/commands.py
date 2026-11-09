@@ -60,6 +60,10 @@ def status_text(app: App) -> str:
                            "('shadow_agree','shadow_disagree') ORDER BY id DESC LIMIT 20", (f["id"],))
         if spot:
             line += f" · spot checks: agreed {sum(r['outcome'] == 'shadow_agree' for r in spot)} of {len(spot)}"
+        np = json.loads(app.store.meta_get(f"new_places:{f['id']}") or "{}")
+        np_steps = {k: d for k, d in (np.get("steps") or {}).items() if k in steps}
+        if np_steps:
+            line += " · new folders: " + ", ".join(f"{d['passed']} of {d['n']}" for d in np_steps.values())
         reason = app.store.meta_get(f"status_reason:{f['id']}") or ""
         if f["status"] == "shadow" and reason.startswith("drift"):
             line += f" · back in shadow ({reason})"
@@ -199,6 +203,17 @@ def handle(app: App, raw: str, *, session_id: str = "", platform: str = "", ask:
         return HELP
     except Exception as exc:  # a slash command must answer, not crash
         return f"Tironian: {exc}"
+
+
+def new_places_text(np: dict[str, Any]) -> str:
+    """How a student did on folder trees it never trained on, in one or two lines."""
+    labels = {"first": "first steps", "follow": "after a tool result"}
+    steps = np.get("steps") or {}
+    if not steps:
+        trained = ", ".join(np.get("trained_on") or []) or "none recorded"
+        return f"  folders it never trained on: no steps yet (trained on {trained})"
+    parts = [f"{labels.get(k, k)} {d['passed']}/{d['n']}" for k, d in steps.items()]
+    return f"  folders it never trained on ({', '.join(np.get('trees') or [])}): " + " · ".join(parts)
 
 
 def forget_text(app: App, session_id: str) -> str:

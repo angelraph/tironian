@@ -45,6 +45,8 @@ def setup(sub: Any) -> None:
     ev = sp.add_parser("eval", help="Test a student on held-out examples from your own sessions")
     ev.add_argument("student")
     ev.add_argument("--limit", type=int)
+    ev.add_argument("--new-places", action="store_true",
+                    help="Only test steps on folder trees the student never trained on (quick; can only stop it serving)")
     for name in ("shadow", "promote", "demote"):
         p = sp.add_parser(name, help=f"{name.capitalize()} a family's student")
         p.add_argument("family")

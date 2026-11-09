@@ -43,13 +43,14 @@ RECENT = [
 ]
 
 
-def prompts(n: int, seed: int, only: str | None = None) -> list[str]:
+def prompts(n: int, seed: int, only: str | None = None, folders: list[str] | None = None) -> list[str]:
     rng = random.Random(seed)
     pick = {"largest": (DISK,), "count": (COUNT,), "recent": (RECENT,)}.get(only or "", (DISK, COUNT, RECENT))
     out = []
     for i in range(n):
         fam = pick[i % len(pick)]
-        out.append(rng.choice(fam).format(k=rng.choice([3, 5, 10]), f=rng.choice(FOLDERS), e=rng.choice(EXTS)))
+        out.append(rng.choice(fam).format(k=rng.choice([3, 5, 10]), f=rng.choice(folders or FOLDERS),
+                                          e=rng.choice(EXTS)))
     return out
 
 
@@ -62,10 +63,12 @@ def main() -> int:
     ap.add_argument("--hermes", default=str(Path(os.environ.get("LOCALAPPDATA", "")) / "hermes" / "bin" / "hermes.exe"))
     ap.add_argument("--log", type=Path, default=Path("seed_sessions.jsonl"))
     ap.add_argument("--only", choices=["largest", "count", "recent"], help="seed one task family")
+    ap.add_argument("--folders", nargs="+", help="folders to ask about instead of the usual home folders, "
+                    "e.g. to test a student on folder trees it never trained on")
     a = ap.parse_args()
     done = {json.loads(x)["prompt"] for x in a.log.read_text(encoding="utf-8").splitlines()} if a.log.exists() else set()
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    for i, p in enumerate(prompts(a.n, a.seed, a.only)):
+    for i, p in enumerate(prompts(a.n, a.seed, a.only, a.folders)):
         if p in done:
             continue
         t = time.time()

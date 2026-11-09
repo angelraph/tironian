@@ -130,7 +130,11 @@ def run(args: Any) -> int:
         if not rows:
             _p("No students yet: `hermes tironian train <family>`.")
     elif cmd == "eval":
-        res = app.evaluate(args.student, limit=args.limit)
+        res = app.evaluate(args.student, limit=args.limit, new_places_only=args.new_places)
+        if args.new_places:
+            _p(commands.new_places_text(res.get("new_places") or {}))
+            _p(res["gate_reason"])
+            return 0
         _p(f"{res['passed']}/{res['n']} held-out steps passed · 95% CI {res['wilson_lo']:.0%} to {res['wilson_hi']:.0%} "
            f"· format valid {res['validity']:.0%} · p50 {res['p50_ms']} ms")
         _p(f"  judge: {res.get('judge', 'off')}")
@@ -140,6 +144,7 @@ def run(args: Any) -> int:
         for kind, d in res.get("steps", {}).items():
             _p(f"  {labels.get(kind, kind)}: {d['passed']}/{d['n']} · CI {d['wilson_lo']:.0%} to {d['wilson_hi']:.0%}"
                f" · {'passes' if d['gate_passed'] else d['gate_reason']}")
+        _p(commands.new_places_text(res.get("new_places") or {}))
         _p(("GATE PASSED: " if res["gate_passed"] else "GATE NOT PASSED: ") + res["gate_reason"])
         if res["failures"]:
             _p("misses: " + ", ".join(f"{k} ×{v}" for k, v in sorted(res["failures"].items(), key=lambda kv: -kv[1])))

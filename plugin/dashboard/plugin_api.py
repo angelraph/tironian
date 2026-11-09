@@ -108,7 +108,14 @@ def families() -> dict[str, Any]:
         d["spot_n"] = len(spot)
         d["spot_agree"] = sum(1 for x in spot if x["outcome"] == "shadow_agree")
         d["status_reason"] = app.store.meta_get(f"status_reason:{r['id']}") or ""
-        sv = saved_by_family.get(r["id"]) or {}
+        np = json.loads(app.store.meta_get(f"new_places:{r['id']}") or "{}")
+        if np and np.get("student") == r["student_id"]:
+            steps = np.get("steps") or {}
+            serving = [k for k in json.loads(app.store.meta_get(f"serve_steps:{r['id']}") or "[]") if k in steps]
+            pick = serving or list(steps)
+            d["new_places"] = {"n": sum(steps[k]["n"] for k in pick), "passed": sum(steps[k]["passed"] for k in pick),
+                               "trees": np.get("trees", []), "trained_on": np.get("trained_on", [])}
+        sv =saved_by_family.get(r["id"]) or {}
         d["routed"] = sv.get("routed", 0)
         d["tokens_avoided"] = sv.get("tokens_avoided", 0)
         out.append(d)

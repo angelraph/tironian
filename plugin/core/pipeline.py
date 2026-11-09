@@ -350,6 +350,47 @@ def _example(store: Store, d: Any, toolset_schemas: list[dict[str, Any]], max_to
     return {"compact": compact, "target": target, "out": out}, None
 
 
+def _session_places(store: Store, decision_ids: list[str]) -> dict[str, str]:
+    """Each session's folder tree: where its first request in the family acts."""
+    out: dict[str, str] = {}
+    for i in range(0, len(decision_ids), 500):
+        chunk = decision_ids[i:i + 500]
+        rows = store.q("SELECT t.session_id AS sid, t.user_text FROM decisions d JOIN turns t ON t.id=d.turn_id "
+                       f"WHERE d.id IN ({','.join('?' * len(chunk))}) ORDER BY t.idx", tuple(chunk))
+        for r in rows:
+            out.setdefault(r["sid"], fam.place(r["user_text"] or ""))
+    return out
+
+
+def _hold_out_places(sessions: list[str], places: dict[str, str], n_hold: int, cap: int,
+                     rng: random.Random) -> set[str] | None:
+    """Hold out whole folder trees: every session in a chosen tree goes to the test, none to
+    training. Trees are added until the test is at least as big as the session split asked for,
+    never past ``cap``. ``None`` when there aren't enough distinct trees to keep one out."""
+    groups: dict[str, list[str]] = {}
+    for sid in sessions:
+        if places.get(sid):
+            groups.setdefault(places[sid], []).append(sid)
+    if len(groups) < 3:
+        return None
+    order = sorted(groups)
+    rng.shuffle(order)
+    held: set[str] = set()
+    for p in order:
+        if len(held) >= n_hold:
+            break
+        if len(held) + len(groups[p]) > cap:
+            continue      # a tree too big to spare from training
+        held |= set(groups[p])
+    return held if held and len(held) >= max(1, n_hold // 2) else None
+
+
+def train_places(store: Store, dataset_id: str) -> set[str]:
+    rows = store.q("SELECT t.user_text FROM dataset_items i JOIN decisions d ON d.id=i.decision_id "
+                   "JOIN turns t ON t.id=d.turn_id WHERE i.dataset_id=? AND i.split='train'", (dataset_id,))
+    return {p for p in (fam.place(r["user_text"] or "") for r in rows) if p}
+
+
 def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Path, *, seed: int = 3407,
                   heldout_share: float = 0.2) -> DatasetInfo:
     """Write ``train.jsonl`` / ``heldout.jsonl`` (Hermes ShareGPT format) for one family.
@@ -406,6 +447,10 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
     while n_hold < cap and short(n_hold):
         n_hold += 1
     held_sessions = set(sessions[:n_hold])
+    places = _session_places(store, [did for _, did, _ in examples]) if settings.holdout_by == "place" else {}
+    by_place = _hold_out_places(sessions, places, n_hold, cap, rng)
+    if by_place is not None:
+        held_sessions = by_place
 
     ds_id = "ds-" + hashlib.sha1(f"{family_id}:{seed}:{len(examples)}:{time.time()}".encode()).hexdigest()[:10]
     ddir = out_dir / ds_id
@@ -469,7 +514,7 @@ def _fresh_heldout(store: Store, settings: Settings, family_id: str, dataset_id:
 
 def evaluate_student(store: Store, settings: Settings, *, student_id: str, dataset_id: str,
                      client: StudentClient, judge: Judge | None = None, limit: int | None = None,
-                     progress: Callable[[int, int], None] | None = None) -> Scorecard:
+                     progress: Callable[[int, int], None] | None = None, new_places_only: bool = False) -> Scorecard:
     st = store.one("SELECT * FROM students WHERE id=?", (student_id,))
     ds = store.one("SELECT * FROM datasets WHERE id=?", (dataset_id,))
     if st is None or ds is None:
@@ -481,8 +526,19 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     lines = Path(ds["path"], "heldout.jsonl").read_text(encoding="utf-8").splitlines()
     fresh = _fresh_heldout(store, settings, family_id, dataset_id, tools)
     lines += fresh
+    seen = train_places(store, dataset_id)
+
+    def where(line: str) -> str:
+        convo = json.loads(line)["conversations"]
+        return fam.place(next((c["value"] for c in convo[:-1] if c["from"] == "human"), ""))
+    if new_places_only:
+        # A quick, honest check: only the steps on folder trees the student never trained on.
+        lines = [ln for ln in lines if (p := where(ln)) and p not in seen]
+        kept = set(lines)
+        fresh = [ln for ln in fresh if ln in kept]
     if limit:
         lines = lines[:limit]
+    line_places = [where(ln) for ln in lines]
 
     eval_id = "ev-" + hashlib.sha1(f"{student_id}:{dataset_id}:{time.time()}".encode()).hexdigest()[:10]
     checks: list[Check] = []
@@ -513,6 +569,31 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     sc = gated_scorecard(checks, lats, kinds, threshold=settings.promotion_threshold, min_n=settings.min_eval_n,
                          validity_floor=settings.validity_floor)
     sc.fresh = min(len(fresh), len(lines))
+    from .evaluate import apply_new_places
+    apply_new_places(sc, checks, kinds, line_places, seen, threshold=settings.promotion_threshold,
+                     min_n=settings.new_place_min_n)
+    if new_places_only:
+        # Too small a sample to promote on its own. It can only take steps away, never add them.
+        prev = json.loads(store.meta_get(f"serve_steps:{family_id}") or "[]")
+        vetoed = {k for k, d in sc.new_places["steps"].items() if d["n"] >= settings.new_place_min_n
+                  and d["passed"] / d["n"] < settings.promotion_threshold}
+        keep = [k for k in prev if k not in vetoed]
+        store.meta_set(f"new_places:{family_id}", json.dumps({**sc.new_places, "at": time.time(),
+                                                              "student": student_id}))
+        if keep != prev:
+            store.meta_set(f"serve_steps:{family_id}", json.dumps(keep))
+            if not keep:
+                with store.tx() as c:
+                    c.execute("UPDATE families SET status='demoted', updated_at=? WHERE id=? AND status IN "
+                              "('shadow','live')", (time.time(), family_id))
+                store.meta_set(f"status_since:{family_id}", repr(time.time()))
+                store.meta_set(f"status_reason:{family_id}", "fell short on folders it never trained on")
+        sc.gate_passed, sc.serve_steps = bool(keep), keep
+        sc.gate_reason = ("still serves " + ", ".join(keep) + " steps" if keep else "stopped serving") + \
+            (f": on folders it never trained on, {', '.join(sorted(vetoed))} fell short" if vetoed
+             else ": it held up on folders it never trained on" if sc.n else ": no new-folder steps yet")
+        return sc
+    store.meta_set(f"new_places:{family_id}", json.dumps({**sc.new_places, "at": time.time(), "student": student_id}))
     store.meta_set(f"serve_steps:{family_id}", json.dumps(sc.serve_steps if sc.gate_passed else []))
     with store.tx() as c:
         c.execute(

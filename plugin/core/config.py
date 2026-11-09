@@ -32,6 +32,8 @@ class Settings:
     spot_check_rate: float = 0.1              # share of a live family's requests double-checked for drift
     answer_badge: str = "desktop"             # desktop | always | off: mark replies your own model helped write
     min_eval_n: int = 30
+    holdout_by: str = "place"                 # place | session: hold out whole folder trees, or only whole sessions
+    new_place_min_n: int = 10                 # steps on never-trained folders needed before they can veto a pass
     validity_floor: float = 0.98
     min_family_turns: int = 25
     route_confidence_min: float = 0.55

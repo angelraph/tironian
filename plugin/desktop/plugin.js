@@ -193,6 +193,12 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
         children: [
           jsx(TestResult, { f }),
           f.shadow_n ? jsx('span', { children: `shadow: agreed ${f.shadow_agree} of ${f.shadow_n}` }) : null,
+          f.new_places && f.new_places.n
+            ? jsx('span', {
+                title: `Trained on ${(f.new_places.trained_on || []).join(', ')}. Tested on ${(f.new_places.trees || []).join(', ')}, which it never saw.`,
+                children: `new folders: ${f.new_places.passed} of ${f.new_places.n}`
+              })
+            : null,
           f.spot_n ? jsx('span', { title: 'Your usual model answers a share of live requests and the student is judged against it, to catch drift', children: `spot checks: agreed ${f.spot_agree} of ${f.spot_n}` }) : null,
           f.status === 'shadow' && (f.status_reason || '').startsWith('drift')
             ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: `back in shadow: ${f.status_reason.replace(/^drift: /, '')}` })

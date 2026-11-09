@@ -343,3 +343,32 @@ def match(feats: frozenset[str], families: Sequence[Family], *, text_only: bool 
     best_sim, best_id = scored[0]
     second = scored[1][0] if len(scored) > 1 else 0.0
     return RouteMatch(best_id, best_sim, best_sim - second)
+
+
+# ============================================================== where a request acts
+
+_HOME_DIRS = ("desktop", "documents", "downloads", "music", "pictures", "videos", "appdata", "onedrive")
+_WIN_PATH = re.compile(r"\b([a-z]):[\\/]+((?:[^\\/\s\"']+[\\/]*){0,3})", re.I)
+_NIX_PATH = re.compile(r"(?:~|\$home|/[a-z]/users/[^/\s]+|/home/[^/\s]+|/users/[^/\s]+)[\\/]+([^\\/\s\"'?,]+)", re.I)
+_HOME_WORD = re.compile(r"\b(" + "|".join(_HOME_DIRS) + r")\b", re.I)
+
+
+def place(text: str) -> str:
+    """The folder tree a request acts on: ``videos``, ``appdata``, ``d:/data``, or "" if none.
+
+    Used to hold out whole folder trees and drives, not just whole sessions, so the test asks
+    whether a student learned the job or only learned my usual paths.
+    """
+    t = text or ""
+    m = _WIN_PATH.search(t)
+    if m:
+        drive = m.group(1).lower()
+        rest = [p.strip(".?!,") for p in re.split(r"[\\/]+", m.group(2)) if p.strip(".?!,")]
+        if drive == "c" and rest and rest[0].lower() == "users":
+            return rest[2].lower() if len(rest) >= 3 else "home"
+        return f"{drive}:/" + (rest[0].lower() if rest else "")
+    m = _NIX_PATH.search(t)
+    if m:
+        return m.group(1).strip(".?!,").lower()
+    m = _HOME_WORD.search(t)
+    return m.group(1).lower() if m else ""

@@ -248,7 +248,7 @@ class App:
                     threading.Thread(target=self.serve_student, args=(st["id"],), daemon=True).start()
         return row
 
-    def evaluate(self, student_id: str, *, limit: int | None = None) -> dict[str, Any]:
+    def evaluate(self, student_id: str, *, limit: int | None = None, new_places_only: bool = False) -> dict[str, Any]:
         from . import jobs, pipeline
         st = self.store.one("SELECT * FROM students WHERE id=?", (student_id,))
         if st is None:
@@ -290,7 +290,8 @@ class App:
         judge = self.judge()
         self.judge_error, self.judge_misses = None, 0
         sc = pipeline.evaluate_student(self.store, self.settings(), student_id=student_id, dataset_id=ds_id,
-                                       client=client, judge=judge, limit=limit, progress=progress)
+                                       client=client, judge=judge, limit=limit, progress=progress,
+                                       new_places_only=new_places_only)
         s = self.settings()
         judge_state = ("off" if not s.judge_enabled else "unavailable (no model access)" if judge is None
                        else f"on, but {self.judge_misses} step(s) went unjudged ({self.judge_error})"
@@ -299,7 +300,7 @@ class App:
         return {"n": sc.n, "passed": sc.passed, "wilson_lo": sc.wilson_lo, "wilson_hi": sc.wilson_hi,
                 "validity": sc.validity, "gate_passed": sc.gate_passed, "gate_reason": sc.gate_reason,
                 "p50_ms": sc.p50_ms, "failures": sc.failures, "steps": sc.steps, "serve_steps": sc.serve_steps,
-                "judge": judge_state, "fresh": sc.fresh}
+                "judge": judge_state, "fresh": sc.fresh, "new_places": sc.new_places}
 
 
 def get_app(**kwargs: Any) -> App:

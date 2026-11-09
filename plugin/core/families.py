@@ -53,7 +53,8 @@ _SYNONYMS: list[tuple[re.Pattern[str], str]] = [(re.compile(rf"\b(?:{a})\b"), b)
 _LABEL_FILLER = frozenset("""
 use using used check checking show tell help want need get see look run terminal command commands
 can could would should give make let quickly please also just
-windows program programdata microsoft common start menu fonts media nt users public
+windows program programdata microsoft common start menu fonts media nt users public x86 intel tools
+inetpub perflogs cursors web
 desktop documents downloads music pictures videos appdata local temp onedrive
 """.split())   # folder names say where, not what: they never name a task
 

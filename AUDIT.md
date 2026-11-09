@@ -40,6 +40,12 @@ and what I did about it. Every fix has a commit that explains why.
 | It took two bad marks to take a family away after a corrected answer | One correction, re-ask or denial of a turn the student took part in is enough |
 | Deleting a session removed its data, but a student trained on it kept answering | Forgetting a session takes every student that saw it off duty until retrained |
 | Ollama unloaded an idle student after 5 minutes, so the first request after a pause fell back | The warm-up asks Ollama to keep it loaded for an hour |
+| A Modal run failed on a dropped connection while it was still training on the GPU | The driver waits out network blips, and `resume` reattaches to the same run; used for real to recover it |
+| A history with only one kind of task lost that family, because every one of its words looked common | Grouping and routing keep a family's own task words |
+| "Thanks" and "ok" became a task family, and a stray "s" from contractions became a feature | Short acknowledgements are not tasks, and single letters are dropped |
+| The same question about a different folder counted as a re-ask, which marked good turns bad | A re-ask must have the same folders, file types and numbers |
+| Savings read zero until a family had served from its own turns | Token savings are averaged over routed turns too |
+| There was no way to check, later, which data and tests a model file came from | Every student gets a sealed passport tying its file hash to its data, run and tests; `--verify` catches edits |
 
 ## Still open
 

@@ -42,6 +42,10 @@ and no cost, so anyone can see in a minute what they repeat.
 - Live evidence: the gate refused my early student at 7 of 31, passed the current one at 51 of 51
   (lower bound 93%), shadow mode agreed 18 of 20, and a live fallback with the student
   unreachable showed nothing to me.
+- It also catches its own maker's blind spots. A reply on X suggested holding out whole folder
+  trees, not just sessions. I built that, and it found that my live student had learned my home
+  folder instead of the task: 5 of 13 on folders it never trained on. It took the student off duty
+  by itself. Tironian would rather refuse a model than flatter it.
 
 **Polish.**
 

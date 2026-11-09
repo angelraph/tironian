@@ -27,7 +27,7 @@ Built for the Nous Research **Hermes Agent plugin hackathon**.
 | **Student model** | Qwen3 1.7B, LoRA fine-tune, exported as a 1.11 GB Q4_K_M GGUF, served by Ollama or Hermes's local model server |
 | **Training** | On a GPU in your own Modal account: my runs took about 10 minutes and cost $0.14, with a hard cap. Or free on your own NVIDIA GPU |
 | **The gate** | Held-out sessions, a blind judge for differing answers, and the 95% Wilson lower bound must reach 85%, judged separately for first steps and steps after a tool result |
-| **Live result** | First steps **51 of 51** on held-out sessions (lower bound 93%), **18 of 20** agreement in shadow mode, now answering live |
+| **Live result** | First steps **51 of 51** on held-out sessions (lower bound 93%), **18 of 20** agreement in shadow mode, then live. On Nov 9 a new test on folders it never trained on caught it writing `$HOME/...` for paths outside my home folder (5 of 13), and took it off duty by itself |
 | **Safety net** | Every answer must parse, call only offered tools and fit their schemas, or your usual model answers, silently. Spot checks on live requests catch drift, and one correction sends a student back to shadow |
 | **Hermes surfaces** | `llm_execution` middleware, 10 hooks, `/tironian`, `hermes tironian`, an auxiliary model slot, a Desktop page and status chip, a dashboard API |
 | **Try it now** | `/tironian demo` runs the whole loop in about 30 seconds, offline, with no keys: a model refused by the gate, a retrained one passing, shadow mode, a live answer and a silent fallback |
@@ -86,6 +86,7 @@ Ollama on the CPU. The family is "count the files of a type in a folder".
 | Shadow mode, real requests | **18 of 20** agreed, so it went live | [shadow scene](media/shadow.jpg) |
 | Live request | First step written by the student in 6.2 s, answer by my usual model | [live scene](media/live.jpg) |
 | Student unreachable | My usual model answered, nothing shown to me, logged as a fallback | [live scene](media/live.jpg) |
+| Folders it never trained on (`C:\Windows`, `C:\Program Files`, `C:\ProgramData`) | First steps **5 of 13**: it rewrote those paths as `$HOME/...`. Taken off duty automatically | [changelog](https://tironian.vercel.app/changelog) |
 
 The held-out steps include 62 from sessions recorded after training, which the student had never
 seen. Most sessions were seeded with [`scripts/seed_sessions.py`](scripts/seed_sessions.py), which
@@ -197,7 +198,11 @@ So the test keeps **whole folder trees and drives** out of training, and scores 
 folders a student never trained on separately. If a kind of step does worse than the threshold
 there, on 10 or more steps, it doesn't serve, however well it did on familiar folders.
 `hermes tironian eval <student> --new-places` runs just that check on a student you already have.
-The idea came from a reply on X.
+The idea came from a reply on X, and it was right. My count student had 51 of 51 on held-out
+sessions, but every folder in that test was also in its training. On 15 new requests about
+`C:\Windows`, `C:\Program Files` and `C:\ProgramData` it got 5 of 13 first steps right: it had
+learned "my files are under my home folder" and wrote `$HOME/Program Files`. The new check took it
+off duty without me doing anything.
 
 ## What it promises
 

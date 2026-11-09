@@ -20,6 +20,7 @@
             <li><code>hermes tironian passport</code> issues a sealed record of a student: the model file's hash (checked again on disk), its training data, its training run and every test it took. <code>--verify</code> shows if anyone changed a number. No conversations are in it.</li>
             <li>A training run on Modal failed with a dropped connection while the model was still training. Training now rides out network blips, and <code>hermes tironian resume</code> reattaches to a lost run without new GPU time. I used it to recover that run.</li>
             <li>The page and <code>/tironian</code> now show cloud prompt tokens avoided per family. Count files: about 12,000 per request it answers.</li>
+            <li>Someone on X pointed out that holding out sessions still lets the same folders appear in training and in the test, so a model can learn my paths instead of the job. They were right: every folder in the count student's test was also in its training. New datasets now keep whole folder trees and drives out of training, every test scores never-seen folders on their own, and a student that does worse there stops serving. <code>eval --new-places</code> runs that check on an existing student.</li>
             <li>"Thanks" and "ok" are no longer treated as tasks, and asking the same thing about a different folder is no longer counted as a re-ask.</li>
           </ul>
         </div>

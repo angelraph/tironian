@@ -32,7 +32,7 @@ Built for the Nous Research **Hermes Agent plugin hackathon**.
 | **Hermes surfaces** | `llm_execution` middleware, 10 hooks, `/tironian`, `hermes tironian`, an auxiliary model slot, a Desktop page and status chip, a dashboard API |
 | **Try it now** | `/tironian demo` runs the whole loop in about 30 seconds, offline, with no keys: a model refused by the gate, a retrained one passing, shadow mode, a live answer and a silent fallback |
 | **Proof you can check** | Answers your own model helped write carry a small card in chat with the evidence behind it. `hermes tironian passport` issues a sealed record of any student, and `--verify` shows if anyone changed it |
-| **Tests** | 93 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
+| **Tests** | 99 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
 | **Privacy** | Secrets and personal details masked before storage, history read only, nothing sent anywhere until you start a training run |
 
 ## Contents
@@ -191,6 +191,14 @@ second, so a student can serve just the first step and your model writes the ans
 output. Sessions you record after training were never seen either, so they join the test too: run
 `eval` again later and the evidence grows without training again.
 
+Holding out sessions is not enough on its own. If I count PDFs in Downloads every week, the same
+folder sits on both sides of the split, and a student can learn my usual path instead of the job.
+So the test keeps **whole folder trees and drives** out of training, and scores the steps on
+folders a student never trained on separately. If a kind of step does worse than the threshold
+there, on 10 or more steps, it doesn't serve, however well it did on familiar folders.
+`hermes tironian eval <student> --new-places` runs just that check on a student you already have.
+The idea came from a reply on X.
+
 ## What it promises
 
 - Your normal model is called at most once per request. If something inside Tironian fails before
@@ -329,7 +337,7 @@ Hermes uses only the Python standard library.
 
 ## Verification
 
-- **Tests:** 93, covering redaction, grading, clustering, the dataset split, the per-step Wilson
+- **Tests:** 99, covering redaction, grading, clustering, the dataset split, the per-step Wilson
   gate, the judge, and every routing fallback path (malformed output, unknown tool, schema
   failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion,
   shadow mode, spot checks and drift, exact forgetting), plus the offline demo end to end, the
@@ -369,7 +377,7 @@ plugin/             the plugin itself (the catalog points here)
   trainer/          the Modal and local GPU trainer (runs in its own venv)
   desktop/          the Hermes Desktop page and status chip
   dashboard/        the dashboard API
-tests/              93 tests with a fake Hermes context and a fake model server
+tests/              99 tests with a fake Hermes context and a fake model server
 scripts/            seed_sessions.py, which runs real Hermes sessions to seed a family
 demo/               the demo video: script, narration, motion graphics, transcript
 media/              screenshots used in this README

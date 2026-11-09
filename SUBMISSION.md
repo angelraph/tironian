@@ -36,7 +36,7 @@ and no cost, so anyone can see in a minute what they repeat.
   answers. A model that falls back too often demotes itself.
 - Spot checks on live requests catch a task that changes after training, and one correction
   sends a student back to shadow mode.
-- 93 tests cover every fallback path, with CI on Linux and Windows.
+- 99 tests cover every fallback path, with CI on Linux and Windows.
 - A training run that loses its connection to Modal can be reattached with
   `hermes tironian resume`, with no new GPU time. I used it for real on Nov 9.
 - Live evidence: the gate refused my early student at 7 of 31, passed the current one at 51 of 51

@@ -30,7 +30,9 @@ Built for the Nous Research **Hermes Agent plugin hackathon**.
 | **Live result** | First steps **51 of 51** on held-out sessions (lower bound 93%), **18 of 20** agreement in shadow mode, now answering live |
 | **Safety net** | Every answer must parse, call only offered tools and fit their schemas, or your usual model answers, silently. Spot checks on live requests catch drift, and one correction sends a student back to shadow |
 | **Hermes surfaces** | `llm_execution` middleware, 10 hooks, `/tironian`, `hermes tironian`, an auxiliary model slot, a Desktop page and status chip, a dashboard API |
-| **Tests** | 81 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
+| **Try it now** | `/tironian demo` runs the whole loop in about 30 seconds, offline, with no keys: a model refused by the gate, a retrained one passing, shadow mode, a live answer and a silent fallback |
+| **Proof you can check** | Answers your own model helped write carry a small card in chat with the evidence behind it. `hermes tironian passport` issues a sealed record of any student, and `--verify` shows if anyone changed it |
+| **Tests** | 93 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
 | **Privacy** | Secrets and personal details masked before storage, history read only, nothing sent anywhere until you start a training run |
 
 ## Contents
@@ -212,6 +214,16 @@ output. Sessions you record after training were never seen either, so they join 
   deleted, and any student that trained on it stops answering until it is retrained without it.
 - Only steps your own model produced, in turns graded good, are used for training. A small model
   never learns from another small model.
+- You can always tell. In Hermes Desktop, a reply your own model helped write ends with a small
+  card: which family, how many held-out steps it passed, its shadow record and the cloud tokens it
+  saved. Set `answer_badge: always` for a plain note on other platforms, or `off`.
+- Every student has a passport. `hermes tironian passport <student>` writes a JSON and Markdown
+  record of the model file's SHA-256 (checked again against the file on disk), the training set's
+  SHA-256, the training run, every held-out test, and its shadow, spot check and live counts. A
+  seal over the whole record means `hermes tironian passport --verify <file>` catches any edit. It
+  holds counts and hashes only, never your conversations.
+- A training run that loses its connection to Modal is not lost: `hermes tironian resume <job>`
+  reattaches to it without starting new GPU time.
 
 ## What it reads, stores and sends
 
@@ -263,6 +275,7 @@ hermes plugins enable tironian
 Then in any Hermes session:
 
 ```
+/tironian demo        the whole loop in about 30 seconds, offline, on scripted history (start here)
 /tironian report      what keeps coming up in your history, and what it costs
 /tironian families    the task families and what each one still needs
 /tironian             current status
@@ -316,10 +329,11 @@ Hermes uses only the Python standard library.
 
 ## Verification
 
-- **Tests:** 81, covering redaction, grading, clustering, the dataset split, the per-step Wilson
+- **Tests:** 93, covering redaction, grading, clustering, the dataset split, the per-step Wilson
   gate, the judge, and every routing fallback path (malformed output, unknown tool, schema
   failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion,
-  shadow mode, spot checks and drift, exact forgetting). CI runs them on Linux and Windows, Python 3.11 to 3.14.
+  shadow mode, spot checks and drift, exact forgetting), plus the offline demo end to end, the
+  proof card, the passport seal and resuming a lost training run. CI runs them on Linux and Windows, Python 3.11 to 3.14.
 - **Hermes checks:** `hermes plugins validate` (including the security scan) and
   `hermes plugins doctor --ci` pass at the pinned catalog SHA.
 - **Live, on Windows with Hermes v0.22.7 and v0.23.0:** capture of streaming turns, four real
@@ -342,6 +356,7 @@ hermes plugins doctor plugin --ci
 | Nov 6 | Tested on a real Hermes install. Desktop page and status chip. Fixed a leaky trainer environment, duplicate history imports, and families split by folder names |
 | Nov 7 | First real students on Modal. Students load into Ollama on their own. The per-step gate and the judge for differing commands. Grouping fixed for when one task dominates history |
 | Nov 8 | v4 passes the gate (51 of 51), goes through shadow mode (18 of 20) and goes live. Fixed shadow mode needing the answer switch, the judge budget and timeouts, cold starts, and the page showing a misleading score. Demo video, submission. Then, from a question on X: spot checks that catch drift, one correction sends a student back, exact forgetting, and students kept loaded between requests |
+| Nov 9 | `/tironian demo` and a Run the demo button: the whole loop offline in half a minute, which found two bugs on its way. Training survives network blips, and `resume` reattaches to a lost Modal run (used for real on the recent files family). A proof card under replies your own model helped write, cloud tokens avoided on the page, and a sealed passport for every student. Two more families trained: recent files and largest files |
 
 Every fix has a commit with the reason in it, and the plain-words version is on the
 [changelog](https://tironian.vercel.app/changelog).
@@ -354,7 +369,7 @@ plugin/             the plugin itself (the catalog points here)
   trainer/          the Modal and local GPU trainer (runs in its own venv)
   desktop/          the Hermes Desktop page and status chip
   dashboard/        the dashboard API
-tests/              81 tests with a fake Hermes context and a fake model server
+tests/              93 tests with a fake Hermes context and a fake model server
 scripts/            seed_sessions.py, which runs real Hermes sessions to seed a family
 demo/               the demo video: script, narration, motion graphics, transcript
 media/              screenshots used in this README

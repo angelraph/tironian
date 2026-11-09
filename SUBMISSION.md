@@ -36,13 +36,17 @@ and no cost, so anyone can see in a minute what they repeat.
   answers. A model that falls back too often demotes itself.
 - Spot checks on live requests catch a task that changes after training, and one correction
   sends a student back to shadow mode.
-- 81 tests cover every fallback path, with CI on Linux and Windows.
+- 93 tests cover every fallback path, with CI on Linux and Windows.
+- A training run that loses its connection to Modal can be reattached with
+  `hermes tironian resume`, with no new GPU time. I used it for real on Nov 9.
 - Live evidence: the gate refused my early student at 7 of 31, passed the current one at 51 of 51
   (lower bound 93%), shadow mode agreed 18 of 20, and a live fallback with the student
   unreachable showed nothing to me.
 
 **Polish.**
 
+- `/tironian demo` (or the Run the demo button on the page) shows the whole loop in about 30
+  seconds, offline and with no keys, so a judge can see it work without training anything.
 - A Tironian page and status chip inside Hermes, `/tironian` in chat and a full `hermes tironian`
   CLI.
 - A site with docs, a cost page and an honest changelog, plus a demo video.
@@ -53,6 +57,12 @@ work, and refuses to use it until it has proven itself. What I haven't seen else
 split by kind of step: the student takes over exactly the part of a task it has mastered (here,
 writing the first command), proven on its own held-out data and in shadow mode, while your usual
 model keeps the rest.
+
+Two more things make the trust visible. A reply your own model helped write ends with a small
+proof card in chat: the family, the held-out result, the shadow record and the tokens saved. And
+every student gets a sealed passport (`hermes tironian passport`) tying the model file's hash to
+its training data, its training run and every test it took, so anyone can check where a model
+came from and `--verify` shows if a single number was changed.
 
 **More than a prompt or a skill.** Middleware that captures and routes model steps, a grading
 engine, deterministic clustering, a dataset builder that matches the serving format exactly, a

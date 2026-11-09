@@ -159,10 +159,14 @@ hermes config set plugins.entries.tironian.settings.train_backend local</pre>
         <tr><td><code>hermes tironian trainer check</code></td><td>Check the Modal token (no cost)</td></tr>
         <tr><td><code>hermes tironian train &lt;family&gt; [--yes] [--backend] [--follow]</code></td><td>Train a model</td></tr>
         <tr><td><code>hermes tironian jobs [--follow]</code> · <code>cancel &lt;job&gt;</code></td><td>Watch or stop training</td></tr>
+        <tr><td><code>hermes tironian resume &lt;job&gt; [--follow]</code></td><td>Reattach to a Modal run whose connection was lost, with no new GPU time</td></tr>
         <tr><td><code>hermes tironian students</code></td><td>Trained models, paths, whether loaded</td></tr>
         <tr><td><code>hermes tironian eval &lt;student&gt; [--limit n]</code></td><td>Held-out test and gate verdict</td></tr>
         <tr><td><code>hermes tironian shadow|promote|demote &lt;family&gt;</code></td><td>Change a family's mode</td></tr>
         <tr><td><code>hermes tironian export &lt;family&gt; --out &lt;dir&gt;</code></td><td>Write a dataset you can use anywhere</td></tr>
+        <tr><td><code>hermes tironian passport &lt;student&gt;</code> · <code>--verify &lt;file&gt;</code></td><td>A sealed record of where a student came from and what it proved, and a check that nobody changed it</td></tr>
+        <tr><td><code>hermes tironian forget &lt;session&gt;</code></td><td>Forget one session exactly, including from any student trained on it</td></tr>
+        <tr><td><code>hermes tironian demo</code></td><td>The whole loop in about 30 seconds, offline, on scripted history</td></tr>
         <tr><td><code>hermes tironian purge --yes</code></td><td>Delete everything Tironian captured</td></tr>
       </tbody>
     </table>
@@ -180,6 +184,7 @@ hermes config set plugins.entries.tironian.settings.train_backend local</pre>
         <tr><td><code>retention_days</code></td><td>90</td><td>Drop recorded contexts after this</td></tr>
         <tr><td><code>judge_enabled</code></td><td>false</td><td>Use a blind judge when a student's answer differs from yours (held-out test and shadow mode)</td></tr>
         <tr><td><code>spot_check_rate</code></td><td>0.1</td><td>Share of a live family's requests your usual model still answers while the student is judged in the background, to catch drift. Under 85% agreement over the last 20 sends it back to shadow mode. 0 turns spot checks off</td></tr>
+        <tr><td><code>answer_badge</code></td><td>desktop</td><td>Where to show that your own model helped with a reply: <code>desktop</code> shows a small proof card in Hermes Desktop, <code>always</code> also adds a one-line note on other platforms, <code>off</code> shows nothing</td></tr>
         <tr><td><code>base_model</code></td><td>qwen3-1.7b</td><td>Or qwen3-4b</td></tr>
         <tr><td><code>train_backend</code></td><td>modal</td><td>Or local</td></tr>
         <tr><td><code>modal_gpu</code></td><td>L4</td><td>Or A10G</td></tr>

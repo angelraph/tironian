@@ -36,20 +36,44 @@ _OVERHEAD_S = {"qwen3-1.7b": 420, "qwen3-4b": 600}      # container start + load
 _S_PER_EXAMPLE_EPOCH = {"qwen3-1.7b": 0.55, "qwen3-4b": 1.3}
 
 
-_LEAKY_ENV = ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "VIRTUAL_ENV", "CONDA_PREFIX", "UV_PROJECT_ENVIRONMENT")
+#: What the trainer's processes may see of Hermes's environment, by name. Everything else is
+#: left out: provider keys, bot tokens and any other secret Hermes holds never reach pip or
+#: the third-party packages it installs. The Modal token is added explicitly, from Hermes's
+#: secret store, only where it is needed.
+_ALLOWED_ENV = frozenset({
+    "PATH", "PATHEXT", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "USERNAME", "LOGNAME",
+    "TMPDIR", "TEMP", "TMP", "LANG", "LANGUAGE", "TZ", "TERM",
+    "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
+    "PROGRAMFILES", "PROGRAMFILES(X86)", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "OS",
+    "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR",
+    # Networks that need a proxy or their own certificates can't reach PyPI or Modal without these.
+    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
+})
+_ALLOWED_PREFIXES = ("LC_",)
+#: Only for training on the user's own GPU: the CUDA stack, and Hugging Face for model downloads.
+_LOCAL_TRAINING_PREFIXES = ("CUDA_", "NVIDIA_", "HF_", "HUGGING_FACE_", "TORCH_", "PYTORCH_")
 
 
-def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Environment for the sidecar's Python with none of Hermes's own Python settings.
+def clean_env(extra: dict[str, str] | None = None, *, local_training: bool = False) -> dict[str, str]:
+    """Environment for the trainer's processes, built from an allow-list.
 
-    Hermes runs plugins with its interpreter's paths in the environment. Passed on, they make
-    pip think the trainer's dependencies are already installed (they are, but in Hermes's
-    venv), and the sidecar later fails to import them on its own.
+    Only the names in ``_ALLOWED_ENV`` (and ``LC_*``) are copied from Hermes's environment, plus
+    the CUDA and Hugging Face settings when training on the user's own GPU. ``extra`` adds what
+    a call needs explicitly, which in practice is ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET``.
+    Hermes's own Python settings (``PYTHONPATH`` and friends) are not on the list either, so pip
+    doesn't mistake Hermes's packages for the sidecar's.
     """
-    env = {k: v for k, v in os.environ.items()
-           if k not in _LEAKY_ENV and not k.startswith(("PIP_", "MODAL_"))}
+    prefixes = _ALLOWED_PREFIXES + (_LOCAL_TRAINING_PREFIXES if local_training else ())
+    env = {k: v for k, v in os.environ.items() if k in _ALLOWED_ENV or k.upper() in _ALLOWED_ENV
+           or k.startswith(prefixes)}
     env.update({k: v for k, v in (extra or {}).items() if v})
     return env
+
+
+def _modal_secrets(secrets: dict[str, str] | None) -> dict[str, str]:
+    """Only the Modal token, whatever else a caller passes."""
+    return {k: v for k, v in (secrets or {}).items() if k in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") and v}
 
 
 def sidecar_python(data_dir: Path) -> Path:
@@ -72,11 +96,11 @@ def setup_sidecar(data_dir: Path, *, python: str | None = None, extra: str | Non
         req = TRAINER_DIR / ("requirements-train.txt" if extra == "local" else "requirements-sidecar.txt")
         subprocess.run([str(sidecar_python(data_dir)), "-m", "pip", "install", "--disable-pip-version-check",
                         "-q", "-r", str(req)], check=True, capture_output=True, timeout=1800,
-                       env=clean_env())
+                       env=clean_env(local_training=extra == "local"))
         if extra == "local":
             subprocess.run([str(sidecar_python(data_dir)), "-m", "pip", "install", "-q", "-r",
                             str(TRAINER_DIR / "requirements-sidecar.txt")], check=True, capture_output=True,
-                           timeout=600, env=clean_env())
+                           timeout=600, env=clean_env(local_training=True))
         (venv / ".tironian-ready").write_text(time.strftime("%Y-%m-%dT%H:%M:%S"))
         return True, f"trainer ready ({venv})"
     except subprocess.CalledProcessError as exc:
@@ -136,13 +160,14 @@ def start(store: Store, data_dir: Path, s: Settings, *, dataset_id: str, family_
         "dataset_id": dataset_id, "family_id": family_id, "params_json": json.dumps(params), "progress": 0.0,
         "message": "queued", "cost_est_usd": est.usd, "artifact_path": None, "sha256": None, "error": None,
         "started_at": time.time(), "ended_at": None})
-    _spawn(data_dir, jdir, secrets or {}, dry=backend == "dry-run")
+    _spawn(data_dir, jdir, secrets or {}, dry=backend == "dry-run", local=backend == "local")
     return job_id
 
 
-def _spawn(data_dir: Path, jdir: Path, secrets: dict[str, str], *, dry: bool) -> None:
+def _spawn(data_dir: Path, jdir: Path, secrets: dict[str, str], *, dry: bool, local: bool = False) -> None:
     py = str(sys.executable if dry else sidecar_python(data_dir))
-    env = {k: v for k, v in clean_env(secrets).items() if not k.startswith(("OPENAI", "ANTHROPIC", "OPENROUTER"))}
+    # A local run never talks to Modal, so it doesn't get the Modal token either.
+    env = clean_env(None if local or dry else _modal_secrets(secrets), local_training=local)
     env["PYTHONUNBUFFERED"] = "1"
     log = open(jdir / "driver.log", "ab")
     kwargs: dict[str, Any] = {"stdin": subprocess.DEVNULL, "stdout": log, "stderr": log, "env": env,
@@ -203,7 +228,7 @@ def check_modal(data_dir: Path, secrets: dict[str, str]) -> tuple[bool, str]:
     """Run the driver's credential check in the sidecar (no compute, no cost)."""
     if not sidecar_ready(data_dir):
         return False, "trainer not set up yet: run `hermes tironian trainer setup`"
-    env = clean_env(secrets)
+    env = clean_env(_modal_secrets(secrets))
     try:
         out = subprocess.run([str(sidecar_python(data_dir)), str(TRAINER_DIR / "driver.py"), "--check"],
                              capture_output=True, text=True, timeout=120, env=env)

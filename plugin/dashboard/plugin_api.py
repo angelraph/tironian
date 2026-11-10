@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -122,14 +123,37 @@ def families() -> dict[str, Any]:
     return {"families": out, "min_family_turns": app.settings().min_family_turns}
 
 
+_DEMO: dict[str, Any] = {"state": "idle", "lines": [], "result": None}
+_DEMO_LOCK = threading.Lock()
+
+
 @router.post("/demo")
 def run_demo() -> dict[str, Any]:
-    """The offline demo, in its own folder. Never touches the user's real data."""
+    """Start the offline demo in its own folder (it never touches the user's real data).
+
+    It runs in the background and the page polls ``GET /demo`` for its lines, so a slow machine
+    shows the demo unfolding instead of a request that times out."""
     app = _app()
+    with _DEMO_LOCK:
+        if _DEMO["state"] == "running":
+            return dict(_DEMO, lines=list(_DEMO["lines"]))
+        _DEMO.update(state="running", lines=[], result=None)
     demo = importlib.import_module(f"{_pkg().__name__}.core.demo")
-    lines: list[str] = []
-    out = demo.run(app.data_dir, lines.append)
-    return {"lines": lines, "result": out}
+
+    def work() -> None:
+        try:
+            out = demo.run(app.data_dir, _DEMO["lines"].append)
+            _DEMO.update(state="done", result=out)
+        except Exception as exc:  # the page shows it instead of spinning forever
+            _DEMO["lines"].append(f"The demo stopped: {exc}")
+            _DEMO.update(state="failed")
+    threading.Thread(target=work, name="tironian-demo", daemon=True).start()
+    return {"state": "running", "lines": []}
+
+
+@router.get("/demo")
+def demo_status() -> dict[str, Any]:
+    return dict(_DEMO, lines=list(_DEMO["lines"]))
 
 
 @router.post("/families/{family_id}/mode")

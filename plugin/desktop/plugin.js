@@ -203,6 +203,9 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
           f.status === 'shadow' && (f.status_reason || '').startsWith('drift')
             ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: `back in shadow: ${f.status_reason.replace(/^drift: /, '')}` })
             : null,
+          f.status === 'demoted' && f.status_reason
+            ? jsx('span', { style: { color: 'var(--ui-text-secondary)' }, children: `stopped: ${f.status_reason}` })
+            : null,
           f.served ? jsx('span', { children: f.routed
             ? `answered ${f.served} of ${f.routed} locally (${pct(f.served / f.routed)}), ${(f.tokens_avoided || 0).toLocaleString()} cloud tokens avoided`
             : `answered ${plural(f.served, 'request')}` }) : null,
@@ -216,11 +219,24 @@ function FamilyRow({ ctx, f, minTurns, busy, onChange }) {
 function TironianPage({ ctx }) {
   const [data, error, reload] = useSummary(ctx)
   const [fams, setFams] = useState({ families: [], min_family_turns: 25 })
-  const [demo, setDemo] = useState(null)   // null, 'running', or the demo's lines
+  // null, or { state: 'running' | 'done' | 'failed', lines }. The demo runs in the background on
+  // the server and this page polls for its lines, so a slow machine shows it unfolding instead of
+  // a request that times out.
+  const [demo, setDemo] = useState(null)
   const runDemo = () => {
-    setDemo('running')
-    ctx.rest('/demo', { method: 'POST' }).then(r => setDemo(r.lines || []), e => setDemo([`The demo failed: ${e?.message || e}`]))
+    setDemo({ state: 'running', lines: [] })
+    ctx.rest('/demo', { method: 'POST' }).then(
+      r => setDemo(d => (d ? { ...d, ...r, lines: (r.lines && r.lines.length) ? r.lines : d.lines } : r)),
+      () => {}   // polling below still picks the demo up, or reports why it stopped
+    )
   }
+  const demoRunning = !!demo && demo.state === 'running'
+  useEffect(() => {
+    if (!demoRunning) return undefined
+    return ctx.setInterval(() => {
+      ctx.rest('/demo').then(r => setDemo(d => (d ? { ...r } : d)), () => {})
+    }, 1000)
+  }, [ctx, demoRunning])
   const loadFams = useCallback(() => { ctx.rest('/families').then(setFams, () => {}) }, [ctx])
   useEffect(() => { loadFams(); return ctx.setInterval(loadFams, 8000) }, [ctx, loadFams])
   const refreshAll = () => { reload(); loadFams() }
@@ -258,8 +274,8 @@ function TironianPage({ ctx }) {
             jsxs('div', {
               style: { display: 'flex', gap: 8 },
               children: [
-                jsx(Button, { size: 'sm', onClick: runDemo, disabled: demo === 'running',
-                  children: demo === 'running' ? 'Running the demo…' : 'Run the demo' }),
+                jsx(Button, { size: 'sm', onClick: runDemo, disabled: demoRunning,
+                  children: demoRunning ? 'Running the demo…' : 'Run the demo' }),
                 jsx(Button, {
                   size: 'sm', variant: 'ghost',
                   onClick: () => ctx.rest('/refresh', { method: 'POST' }).then(refreshAll),
@@ -269,7 +285,7 @@ function TironianPage({ ctx }) {
             })
           ]
         }),
-        Array.isArray(demo)
+        demo
           ? jsxs('section', {
               style: { border: '1px solid var(--ui-stroke-secondary)', borderRadius: 8, padding: '10px 12px' },
               children: [
@@ -277,10 +293,11 @@ function TironianPage({ ctx }) {
                   style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
                   children: [
                     jsx('div', { style: { fontSize: 13, fontWeight: 500 }, children: 'Demo: real Tironian code, scripted history and models, in its own folder' }),
-                    jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => setDemo(null), children: 'Close' })
+                    jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => setDemo(null), disabled: demoRunning, children: 'Close' })
                   ]
                 }),
-                jsx('pre', { style: { margin: 0, fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: 'var(--ui-text-secondary)', maxHeight: 420, overflowY: 'auto' }, children: demo.join('\n') })
+                jsx('pre', { style: { margin: 0, fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: 'var(--ui-text-secondary)', maxHeight: 420, overflowY: 'auto' },
+                  children: (demo.lines || []).join('\n') + (demoRunning ? (demo.lines && demo.lines.length ? '\n…' : 'Starting…') : '') })
               ]
             })
           : null,

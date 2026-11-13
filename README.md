@@ -344,7 +344,36 @@ Hermes uses only the Python standard library.
 
 ## Verification
 
-- **Tests:** 123, covering redaction (including a login named `user`), grading, clustering, the dataset split, the per-step Wilson
+### Check my numbers yourself
+
+A score I report is only a claim. `hermes tironian proof` writes the exact held-out test a student
+took (every request, its answer, and how each answer was graded) into one sealed file.
+`hermes tironian verify` takes that file and the student's model file, checks the model is the one
+that was tested (sha256), loads it into Ollama, asks every step again and grades the answers with
+the same code. Nothing from my machine is needed.
+
+```bash
+hermes tironian verify proof.json --model tironian-f8667670c-v4.gguf
+```
+
+Run on my count student (v4), on a CPU:
+
+```
+Same answer as in the test: 51 of 51
+Passed now: 51 of 51 (the test recorded 51)
+first steps: 51 of 51, lower bound 93% -> passes
+17 pass(es) rest on the blind judge's recorded verdict; the answer is identical, and PROOF.md
+shows both commands so you can judge them yourself
+GATE REPRODUCED: lower bound 93% >= 85%
+```
+
+The judge is the honest exception: it is a model, not a rule. When the student gives the same
+answer as in the test, the recorded verdict stands and `PROOF.md` shows both commands side by side.
+When the answer differs, your own Tironian judge grades it again, or it counts as a miss.
+
+### Tests and checks
+
+- **Tests:** 129, covering redaction (including a login named `user`), grading, clustering, the dataset split, the per-step Wilson
   gate, the judge, and every routing fallback path (malformed output, unknown tool, schema
   failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion,
   shadow mode, spot checks and drift, exact forgetting), plus the offline demo end to end, the
@@ -373,7 +402,7 @@ hermes plugins doctor plugin --ci
 | Nov 7 | First real students on Modal. Students load into Ollama on their own. The per-step gate and the judge for differing commands. Grouping fixed for when one task dominates history |
 | Nov 8 | v4 passes the gate (51 of 51), goes through shadow mode (18 of 20) and goes live. Fixed shadow mode needing the answer switch, the judge budget and timeouts, cold starts, and the page showing a misleading score. Demo video, submission. Then, from a question on X: spot checks that catch drift, one correction sends a student back, exact forgetting, and students kept loaded between requests |
 | Nov 9 | `/tironian demo` and a Run the demo button: the whole loop offline in half a minute, which found two bugs on its way. Training survives network blips, and `resume` reattaches to a lost Modal run (used for real on the recent files family). A proof card under replies your own model helped write, cloud tokens avoided on the page, and a sealed passport for every student. Two more families trained: recent files and largest files |
-| Nov 13 | Fixes from an outside review (IMD's agents ran it inside Hermes): any command given a name that doesn't exist now answers in one line instead of a traceback; a step kind with too few test steps can no longer pass on the pooled score; a login named `user` no longer masks message roles; calls to the local model skip HTTP_PROXY; student replies are capped at 4 MB |
+| Nov 13 | Fixes from an outside review (IMD's agents ran it inside Hermes): any command given a name that doesn't exist now answers in one line instead of a traceback; a step kind with too few test steps can no longer pass on the pooled score; a login named `user` no longer masks message roles; calls to the local model skip HTTP_PROXY; student replies are capped at 4 MB. Then `proof` and `verify`: anyone can rerun a student's held-out test on its model file. Rerun on count v4: same answer on 51 of 51 steps, gate reproduced |
 
 Every fix has a commit with the reason in it, and the plain-words version is on the
 [changelog](https://tironian.vercel.app/changelog).

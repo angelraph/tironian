@@ -92,10 +92,21 @@ def test_end_to_end(app_factory, llama, tmp_path):
     for h in held:
         t = h["teacher"]
         replies.append(render_target(t.get("content"), t.get("tool_calls")))
-    llama.replies = replies
+    llama.replies = list(replies)   # pop() would empty the list the replay below reuses
     out = app.evaluate(student["id"])
     assert out["n"] == len(held) and out["passed"] == len(held) and out["gate_passed"], out
     assert app.store.scalar("SELECT status FROM families WHERE id=?", (disk["id"],)) == "shadow"
+
+    # 4b. the same test, exported and replayed by someone else, reproduces the result
+    from tironian.core import proof
+    from tironian.core.student import StudentClient
+    doc = proof.export(app.store, app.settings(), student["id"], kinds=())
+    assert proof.check_seal(doc) and len(doc["steps"]) == len(held)
+    assert all(s["recorded"]["passed"] for s in doc["steps"])
+    llama.replies = list(replies)
+    res = proof.replay(doc, lambda m: StudentClient(llama.url).complete(llama.model, m))
+    assert res["identical"] == res["n"] == len(held) and res["passed"] == len(held) and res["gate_passed"], res
+    assert "Request:" in proof.review_markdown(doc)
 
     # 5. promotion to live needs live shadow agreement first
     msg = commands.set_status(app, "promote", disk["id"])

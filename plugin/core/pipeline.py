@@ -518,6 +518,19 @@ def _fresh_heldout(store: Store, settings: Settings, family_id: str, dataset_id:
     return out
 
 
+def step_inputs(ex: dict[str, Any]) -> tuple[str, list[dict[str, str]], dict[str, Any], str]:
+    """One held-out line as the student sees it: (step kind, messages, teacher's step, request).
+
+    Shared by the evaluation and by ``tironian verify``, so a replay asks exactly what the test asked.
+    """
+    convo = ex["conversations"]
+    kind = step_kind("tool" if len(convo) >= 2 and convo[-2]["from"] == "tool" else "user")
+    msgs = [{"role": {"system": "system", "human": "user", "tool": "user", "gpt": "assistant"}[c["from"]],
+             "content": c["value"]} for c in convo[:-1]]
+    user_req = next((c["value"] for c in reversed(convo[:-1]) if c["from"] == "human"), "")
+    return kind, msgs, ex.get("teacher") or {}, user_req
+
+
 def evaluate_student(store: Store, settings: Settings, *, student_id: str, dataset_id: str,
                      client: StudentClient, judge: Judge | None = None, limit: int | None = None,
                      progress: Callable[[int, int], None] | None = None, new_places_only: bool = False) -> Scorecard:
@@ -553,12 +566,8 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
     item_rows = []
     for i, line in enumerate(lines):
         ex = json.loads(line)
-        convo = ex["conversations"]
-        kinds.append(step_kind("tool" if len(convo) >= 2 and convo[-2]["from"] == "tool" else "user"))
-        msgs = [{"role": {"system": "system", "human": "user", "tool": "user", "gpt": "assistant"}[c["from"]],
-                 "content": c["value"]} for c in convo[:-1]]
-        teacher = ex.get("teacher") or {}
-        user_req = next((c["value"] for c in reversed(convo[:-1]) if c["from"] == "human"), "")
+        kind, msgs, teacher, user_req = step_inputs(ex)
+        kinds.append(kind)
         reply = client.complete(st["model_id"], msgs)
         lats.append(reply.latency_ms)
         if not reply.ok:

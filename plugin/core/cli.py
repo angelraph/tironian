@@ -43,6 +43,51 @@ def _follow(app: Any, job_id: str) -> int:
         time.sleep(3)
 
 
+def _verify(app: Any, args: Any) -> int:
+    from . import proof, serve
+    from .student import StudentClient, model_matches
+    cache = app.data_dir / "verify"
+    doc = json.loads(proof.fetch(args.proof, cache, say=_p).read_text(encoding="utf-8-sig"))
+    if doc.get("tool") != "tironian" or "steps" not in doc:
+        raise ValueError("that file isn't a Tironian proof")
+    if not proof.check_seal(doc):
+        _p("INVALID: the proof's seal doesn't match its contents, so it was changed after it was written.")
+        return 1
+    want = doc["student"]["sha256"]
+    gguf = proof.fetch(args.model, cache, expect_sha256=want, say=_p)
+    _p("Checking the model file is the one that was tested...")
+    got = proof.file_sha256(gguf)
+    if got != want:
+        _p(f"INVALID: the model file's sha256 is {got[:16]}..., the proof was made with {want[:16]}...")
+        return 1
+    _p(f"  sha256 {got[:16]}... matches.")
+    name = f"tironian-verify-{got[:12]}"
+    client = StudentClient(args.endpoint, timeout_s=180)
+    if not any(model_matches(m, name) for m in client.available_models()):
+        if not serve.is_ollama(args.endpoint):
+            raise RuntimeError(f"{args.endpoint} doesn't list {name}: load {gguf} there under that name first")
+        _p("Loading it into Ollama...")
+        ok, msg = serve.load_into_ollama(gguf, name)
+        if not ok:
+            raise RuntimeError(msg)
+    if args.limit:
+        doc = {**doc, "steps": doc["steps"][:args.limit]}
+    _p(f"Asking the student {len(doc['steps'])} held-out steps again (a few seconds each on a CPU)...")
+
+    def progress(i: int, n: int) -> None:
+        if i == n or i % 10 == 0:
+            _p(f"  {i} of {n}")
+    res = proof.replay(doc, lambda msgs: client.complete(name, msgs), judge=app.judge(), progress=progress)
+    _p("")
+    _p(proof.report_text(doc, res))
+    out = cache / f"verify-{doc['eval']['id']}-{int(time.time())}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"proof_seal": doc["seal"], "model_sha256": got, **res}, indent=1,
+                              ensure_ascii=False), encoding="utf-8")
+    _p(f"Full result: {out}")
+    return 0 if res["gate_passed"] else 1
+
+
 def run(args: Any) -> int:
     """Run one ``hermes tironian`` command. A bad name, a missing file or a step that can't
     happen yet gets one plain sentence and exit code 1, never a Python traceback."""
@@ -67,6 +112,7 @@ _HINTS = {
     "demote": "See `hermes tironian families` for family ids.",
     "eval": "See `hermes tironian students` for student ids.",
     "passport": "See `hermes tironian students` for student ids.",
+    "proof": "See `hermes tironian students` for student ids.",
     "cancel": "See `hermes tironian jobs` for job ids.",
 }
 
@@ -200,6 +246,20 @@ def _run(args: Any) -> int:
         mp.write_text(passport.markdown(doc), encoding="utf-8")
         _p(passport.markdown(doc))
         _p(f"\nWrote {jp} and {mp}")
+    elif cmd == "proof":
+        from . import proof
+        doc = proof.export(app.store, s, args.student, eval_id=args.eval_id,
+                           kinds=() if args.all_steps else ("first",))
+        args.out.mkdir(parents=True, exist_ok=True)
+        jp, mp = args.out / "proof.json", args.out / "PROOF.md"
+        jp.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
+        mp.write_text(proof.review_markdown(doc), encoding="utf-8")
+        passed = sum(st["recorded"]["passed"] for st in doc["steps"])
+        _p(f"Wrote {len(doc['steps'])} steps from {doc['eval']['id']} ({passed} passed) to {jp}")
+        _p(f"Read {mp} before you share it: it has your requests and commands (secrets and home folder masked).")
+        _p(f"Then anyone can run: hermes tironian verify proof.json --model {doc['student']['id']}.gguf")
+    elif cmd == "verify":
+        return _verify(app, args)
     elif cmd == "forget":
         _p(commands.forget_text(app, args.session))
     elif cmd == "purge":

@@ -31,8 +31,8 @@ Built for the Nous Research **Hermes Agent plugin hackathon**.
 | **Safety net** | Every answer must parse, call only offered tools and fit their schemas, or your usual model answers, silently. Spot checks on live requests catch drift, and one correction sends a student back to shadow |
 | **Hermes surfaces** | `llm_execution` middleware, 10 hooks, `/tironian`, `hermes tironian`, an auxiliary model slot, a Desktop page and status chip, a dashboard API |
 | **Try it now** | `/tironian demo` runs the whole loop in about 30 seconds, offline, with no keys: a model refused by the gate, a retrained one passing, shadow mode, a live answer and a silent fallback |
-| **Proof you can check** | Answers your own model helped write carry a small card in chat with the evidence behind it. `hermes tironian passport` issues a sealed record of any student, and `--verify` shows if anyone changed it |
-| **Tests** | 99 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
+| **Proof you can check** | Answers your own model helped write carry a small card in chat with the evidence behind it. `hermes tironian passport` issues a sealed record of any student. `hermes tironian verify` reruns a student's whole held-out test on its model file, on your machine: [try it on mine](#check-my-numbers-yourself) |
+| **Tests** | 129 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
 | **Privacy** | Secrets and personal details masked before storage, history read only, nothing sent anywhere until you start a training run |
 
 ## Contents
@@ -423,7 +423,7 @@ plugin/             the plugin itself (the catalog points here)
   trainer/          the Modal and local GPU trainer (runs in its own venv)
   desktop/          the Hermes Desktop page and status chip
   dashboard/        the dashboard API
-tests/              99 tests with a fake Hermes context and a fake model server
+tests/              129 tests with a fake Hermes context and a fake model server
 scripts/            seed_sessions.py, which runs real Hermes sessions to seed a family
 demo/               the demo video: script, narration, motion graphics, transcript
 media/              screenshots used in this README

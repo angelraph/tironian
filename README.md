@@ -352,11 +352,15 @@ took (every request, its answer, and how each answer was graded) into one sealed
 that was tested (sha256), loads it into Ollama, asks every step again and grades the answers with
 the same code. Nothing from my machine is needed.
 
+My count student (v4), its proof and its passport are in the
+[proof-count-v4 release](https://github.com/angelraph/tironian/releases/tag/proof-count-v4). One
+command downloads both files and reruns the test:
+
 ```bash
-hermes tironian verify proof.json --model tironian-f8667670c-v4.gguf
+hermes tironian verify https://github.com/angelraph/tironian/releases/download/proof-count-v4/proof.json --model https://github.com/angelraph/tironian/releases/download/proof-count-v4/tironian-f8667670c-v4.gguf
 ```
 
-Run on my count student (v4), on a CPU:
+Run on my machine, on a CPU:
 
 ```
 Same answer as in the test: 51 of 51
@@ -366,6 +370,10 @@ first steps: 51 of 51, lower bound 93% -> passes
 shows both commands so you can judge them yourself
 GATE REPRODUCED: lower bound 93% >= 85%
 ```
+
+Why 93% and not 100%? It's the worst case the evidence supports, not the score. 51 out of 51 is
+perfect, but 51 steps can only rule out so much, so the gate looks at the low end of the 95%
+Wilson interval. A perfect run needs about 73 steps to show 95% and about 380 to show 99%.
 
 The judge is the honest exception: it is a model, not a rule. When the student gives the same
 answer as in the test, the recorded verdict stands and `PROOF.md` shows both commands side by side.

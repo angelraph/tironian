@@ -53,10 +53,15 @@ RECENT = [
 ]
 
 
-def prompts(n: int, seed: int, only: str | None = None, folders: list[str] | None = None) -> list[str]:
+def prompts(n: int, seed: int, only: str | None = None, folders: list[str] | None = None,
+            template: int | None = None) -> list[str]:
     rng = random.Random(seed)
     pick = {"largest": (DISK,), "count": (COUNT,), "recent": (RECENT,), "deep": (DEEP,)}.get(
         only or "", (DISK, COUNT, RECENT))
+    if template is not None:
+        # One wording only. Tironian groups requests by their words, so four phrasings of one
+        # task can land in four families, none big enough to test.
+        pick = tuple((fam[template],) for fam in pick)
     exts = OTHER_EXTS if folders else EXTS
     out = []
     for i in range(n):
@@ -77,10 +82,11 @@ def main() -> int:
     ap.add_argument("--only", choices=["largest", "count", "recent", "deep"], help="seed one task family")
     ap.add_argument("--folders", nargs="+", help="folders to ask about instead of the usual home folders, "
                     "e.g. to test a student on folder trees it never trained on")
+    ap.add_argument("--template", type=int, help="use only this wording (its index in the family's list)")
     a = ap.parse_args()
     done = {json.loads(x)["prompt"] for x in a.log.read_text(encoding="utf-8").splitlines()} if a.log.exists() else set()
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    for i, p in enumerate(prompts(a.n, a.seed, a.only, a.folders)):
+    for i, p in enumerate(prompts(a.n, a.seed, a.only, a.folders, a.template)):
         if p in done:
             continue
         t = time.time()

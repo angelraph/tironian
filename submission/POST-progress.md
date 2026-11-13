@@ -15,7 +15,7 @@ Within a day, everything they found was fixed:
 • calls to your local model skip any proxy on your machine
 • replies from the local model are size capped
 
-But one note mattered more than the rest. Every judge wrote some version of the same thing: "we couldn't confirm a real trained model."
+But one note mattered more than the rest. Every judge said, in one way or another, that they couldn't confirm a real trained model.
 
 They only had our word for it. That's not good enough for us either.
 

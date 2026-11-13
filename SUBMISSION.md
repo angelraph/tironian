@@ -2,10 +2,15 @@
 
 Entry for the Nous Research **Hermes Agent plugin hackathon** (entries closed November 11, 2026).
 
+**The judged version is commit [`9b590cc`](https://github.com/angelraph/tironian/tree/9b590cc094f4b65cd70e979f632e1783424526a8),
+the one Nous's catalog entry pins.** I haven't changed the catalog entry since the deadline. Everything
+on `master` after November 11 is work done after entries closed (the fixes from an outside review,
+`proof` and `verify`), and it's listed in the README's build log under Nov 13.
+
 | | |
 |---|---|
 | **Plugin** | Tironian, `plugin/` in [angelraph/tironian](https://github.com/angelraph/tironian) |
-| **Catalog PR** | [NousResearch/hermes-agent#151281](https://github.com/NousResearch/hermes-agent/pull/151281), pinned to `df9b3a5` |
+| **Catalog PR** | [NousResearch/hermes-agent#151281](https://github.com/NousResearch/hermes-agent/pull/151281), merged by Nous on November 10, pinned to `9b590cc` |
 | **Demo on X** | [x.com/RaphElevator/status/2119405172937961540](https://x.com/RaphElevator/status/2119405172937961540), tagging @NousResearch |
 | **Demo video** | [tironian.vercel.app/#demo](https://tironian.vercel.app/#demo) (1:26), transcript in [demo/TRANSCRIPT.md](demo/TRANSCRIPT.md) |
 | **Submission form** | Submitted on November 8, 2026 |

@@ -1,5 +1,5 @@
 name: tironian
-version: "0.1.0"
+version: "0.2.0"
 manifest_version: 2
 description: >-
   Distills your own Hermes work into a personal local model: captures and grades every turn,

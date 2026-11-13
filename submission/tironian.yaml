@@ -24,7 +24,7 @@ maintainer: angelraph
 tier: community
 category: models
 requires_hermes: ">=0.22.3"
-version: "0.1.0"
+version: "0.2.0"
 docs_url: https://tironian.vercel.app/docs
 image: https://raw.githubusercontent.com/angelraph/tironian/9b590cc094f4b65cd70e979f632e1783424526a8/web/assets/og.png
 platforms: []

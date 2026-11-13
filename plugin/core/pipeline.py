@@ -18,7 +18,8 @@ from typing import Any, Callable, Iterable, Sequence
 
 from . import families as fam
 from .config import Settings
-from .evaluate import Check, Judge, Scorecard, check_decision, gated_scorecard, scorecard, step_kind  # noqa: F401
+from .evaluate import (Check, Judge, Scorecard, check_decision, gated_scorecard, invented_masks,  # noqa: F401
+                       scorecard, step_kind)
 from .grade import ToolOutcome, TurnFacts, grade
 from .hermes_format import compact_messages, render_target, to_sharegpt, tool_name
 from .redact import TRAINING_HIT_LIMIT, Redactor, sensitive_count
@@ -347,7 +348,13 @@ def _example(store: Store, d: Any, toolset_schemas: list[dict[str, Any]], max_to
         if (tc.get("function") or {}).get("name") not in names:
             return None, "tool_outside_family"
     target = render_target(out.get("content"), out.get("tool_calls"))
-    return {"compact": compact, "target": target, "out": out}, None
+    # A teacher step that names the user's home folder is stored as /c/Users/[REDACTED:user]/...
+    # Training on it teaches the student to write the mask, or a made-up stand-in, and neither
+    # runs, so such steps are only ever tested, never trained on. A step that copies a mask from
+    # its input is fine: served, it copies the real value.
+    calls = [{"arguments": (tc.get("function") or {}).get("arguments")} for tc in out.get("tool_calls") or []]
+    masked = bool(invented_masks(calls, context_text(compact.messages)))
+    return {"compact": compact, "target": target, "out": out, "masked": masked}, None
 
 
 def _session_places(store: Store, decision_ids: list[str]) -> dict[str, str]:
@@ -468,6 +475,11 @@ def build_dataset(store: Store, settings: Settings, family_id: str, out_dir: Pat
     with train_p.open("w", encoding="utf-8") as ft, held_p.open("w", encoding="utf-8") as fh:
         for sid, did, ex in examples:
             held = sid in held_sessions
+            if ex["masked"] and not held:
+                # Listed, so the session still counts as seen and never turns up as "fresh".
+                skipped["mask_in_answer"] = skipped.get("mask_in_answer", 0) + 1
+                items.append((ds_id, did, "skipped"))
+                continue
             line = json.dumps({
                 "conversations": to_sharegpt(ex["compact"], ex["target"]),
                 "family": family_id, "decision_id": did, "completed": True,
@@ -516,6 +528,11 @@ def _fresh_heldout(store: Store, settings: Settings, family_id: str, dataset_id:
                                "decision_id": d["id"], "completed": True, "teacher": ex["out"]},
                               ensure_ascii=False))
     return out
+
+
+def context_text(msgs: Sequence[dict[str, Any]]) -> str:
+    """Everything a student was shown for one step, as one string (for the mask check)."""
+    return "\n".join(str(m.get("content") or "") for m in msgs)
 
 
 def step_inputs(ex: dict[str, Any]) -> tuple[str, list[dict[str, str]], dict[str, Any], str]:
@@ -574,7 +591,8 @@ def evaluate_student(store: Store, settings: Settings, *, student_id: str, datas
             chk = Check(False, False, reason=f"invalid:{reply.error}")
         else:
             chk = check_decision(reply.text, teacher.get("content") or "", teacher.get("tool_calls") or [],
-                                 tools, user_request=user_req, judge=judge, flip=bool(i % 2))
+                                 tools, user_request=user_req, judge=judge, flip=bool(i % 2),
+                                 context=context_text(msgs))
         checks.append(chk)
         item_rows.append((eval_id, ex.get("decision_id"), reply.text[:4000],
                           json.dumps(asdict(chk)), int(chk.passed)))

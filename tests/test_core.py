@@ -296,3 +296,28 @@ def test_gate_requires_lower_bound():
     assert not small.gate_passed and "needs" in small.gate_reason
     weak = evaluate.scorecard([evaluate.Check(True, True)] * 45 + [evaluate.Check(False, True)] * 15, [1] * 60)
     assert not weak.gate_passed
+
+
+def test_a_mask_the_student_made_up_is_invalid():
+    """Found in v6's test: the teacher's step was /c/Users/[REDACTED:user]/Videos, the student
+    wrote /c/Users/[REDACTED]/Videos, and the judge passed it. Served, that command can't run."""
+    call = lambda cmd: {"function": {"name": "terminal", "arguments": json.dumps({"command": cmd})}}
+    teacher = [call('find "/c/Users/[REDACTED:user]/Videos" -type f -iname "*.png" | wc -l')]
+    yes = lambda r, a, b: "tie"
+    for made_up in ('find "/c/Users/[REDACTED]/Videos" -type f -iname "*.png" | wc -l',
+                    'find "/c/Users/[REDACTED:user]/Videos" -type f -iname "*.png" | wc -l'):
+        c = evaluate.check_decision(hf.render_target("", [call(made_up)]), "", teacher, TOOLS,
+                                    judge=yes, context="Count every .png file under Videos")
+        assert not c.passed and not c.valid and c.reason == "invalid:invented_mask"
+    # The same command without a context to compare against is judged as before.
+    assert evaluate.check_decision(hf.render_target("", [call(made_up)]), "", teacher, TOOLS).passed
+
+
+def test_a_mask_copied_from_the_input_is_fine():
+    """A mask in the student's input stands for a real value it will see when served."""
+    call = lambda cmd: {"function": {"name": "terminal", "arguments": json.dumps({"command": cmd})}}
+    cmd = "curl -H 'Authorization: Bearer [REDACTED:api_key]' https://example.test/a"
+    c = evaluate.check_decision(hf.render_target("", [call(cmd)]), "", [call(cmd)], TOOLS,
+                                context="call it with Bearer [REDACTED:api_key] please")
+    assert c.passed
+    assert evaluate.invented_masks([{"arguments": {"command": "ls $HOME"}}], "") == []

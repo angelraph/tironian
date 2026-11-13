@@ -132,17 +132,42 @@ class Check:
     reason: str = ""
 
 
+#: The redactor's masks, e.g. ``[REDACTED:user]``. Captured sessions store them in place of
+#: usernames and secrets, so a student can learn to write one.
+MASK = re.compile(r"\[REDACTED(?::[a-z_]+)?\]")
+
+
+def invented_masks(calls: Sequence[dict[str, Any]], context: str) -> list[str]:
+    """Masks in a student's tool calls that aren't in what it was shown.
+
+    A mask copied from its input stands for a real value the student will see when it's served,
+    so that's fine. One it made up (``find /c/Users/[REDACTED]/Videos``) can never run, however
+    closely it matches the teacher's equally masked step.
+    """
+    out: list[str] = []
+    for c in calls:
+        args = c.get("arguments")
+        text = args if isinstance(args, str) else json.dumps(args or {}, ensure_ascii=False)
+        for m in MASK.findall(text):
+            if m not in context and m not in out:
+                out.append(m)
+    return out
+
+
 def check_decision(student_text: str, teacher_content: str, teacher_calls: Sequence[dict[str, Any]],
                    tools: Sequence[dict[str, Any]], *, user_request: str = "", judge: Judge | None = None,
-                   flip: bool = False) -> Check:
+                   flip: bool = False, context: str | None = None) -> Check:
     """Compare one student step with the teacher's recorded step.
 
     ``teacher_calls`` are OpenAI-style ``tool_calls`` entries. ``flip`` swaps the A/B order shown
-    to the judge (callers alternate it so position bias cancels out).
+    to the judge (callers alternate it so position bias cancels out). ``context`` is the text the
+    student was shown; with it, a tool call that uses a mask it wasn't shown is invalid.
     """
     p: Parsed = parse_output(student_text)
     if not p.ok:
         return Check(False, False, reason=f"invalid:{p.error}")
+    if context is not None and invented_masks(p.tool_calls, context):
+        return Check(False, False, reason="invalid:invented_mask")
 
     t_calls = []
     for tc in teacher_calls or []:

@@ -173,7 +173,8 @@ def replay(doc: dict[str, Any], complete: Callable[[list[dict[str, str]]], Any],
                 seen["asked"] = True
                 return judge(req, a, b) if judge else None
             chk = check_decision(reply.text, s["teacher"].get("content") or "", s["teacher"].get("tool_calls") or [],
-                                 tools, user_request=s["user_request"], judge=tracked, flip=bool(s.get("flip")))
+                                 tools, user_request=s["user_request"], judge=tracked, flip=bool(s.get("flip")),
+                                 context=_context_text(s["messages"]))
             if seen["asked"]:
                 if (chk.text or "").startswith("judge-"):
                     rejudged += 1
@@ -255,3 +256,8 @@ def file_sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _context_text(msgs: Sequence[dict[str, Any]]) -> str:
+    from .pipeline import context_text
+    return context_text(msgs)

@@ -270,3 +270,20 @@ def test_bad_student_fails_gate(app_factory, llama, tmp_path):
     assert not out["gate_passed"]
     assert app.store.scalar("SELECT status FROM families WHERE id=?", (disk["id"],)) == "evaluated"
     assert "hasn't passed" in commands.set_status(app, "shadow", disk["id"])
+
+
+def test_a_teacher_step_with_a_masked_home_folder_is_not_trained_on():
+    """The student can't know what [REDACTED:user] stands for, so it learns to write the mask."""
+    from tironian.core.store import compress
+    msgs = [{"role": "system", "content": "You are Hermes."},
+            {"role": "user", "content": "Count every .png file under Videos, subfolders included."}]
+
+    def row(cmd):
+        out = {"content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {
+            "name": "terminal", "arguments": json.dumps({"command": cmd})}}]}
+        return {"context_z": compress(msgs), "output_json": json.dumps(out)}
+
+    ex, why = pipeline._example(None, row('find "/c/Users/[REDACTED:user]/Videos" -iname "*.png" | wc -l'), TOOLS, 4000)
+    assert ex["masked"] and why is None  # kept for the test, left out of training by build_dataset
+    ex, why = pipeline._example(None, row('find "$HOME/Videos" -iname "*.png" | wc -l'), TOOLS, 4000)
+    assert not ex["masked"]

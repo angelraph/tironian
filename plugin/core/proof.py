@@ -173,7 +173,8 @@ def replay(doc: dict[str, Any], complete: Callable[[list[dict[str, str]]], Any],
                 seen["asked"] = True
                 return judge(req, a, b) if judge else None
             chk = check_decision(reply.text, s["teacher"].get("content") or "", s["teacher"].get("tool_calls") or [],
-                                 tools, user_request=s["user_request"], judge=tracked, flip=bool(s.get("flip")))
+                                 tools, user_request=s["user_request"], judge=tracked, flip=bool(s.get("flip")),
+                                 context=_context_text(s["messages"]))
             if seen["asked"]:
                 if (chk.text or "").startswith("judge-"):
                     rejudged += 1
@@ -230,9 +231,14 @@ def fetch(src: str, cache: Path, *, expect_sha256: str | None = None,
         return p
     import urllib.request
     name = Path(urllib.parse.urlsplit(src).path).name or "download"
-    cache.mkdir(parents=True, exist_ok=True)
-    dest = cache / name
-    if dest.exists() and (not expect_sha256 or file_sha256(dest) == expect_sha256):
+    # Every release names its proof proof.json, so the cache is per URL: keyed by name alone,
+    # verifying v7 after v4 handed back v4's proof.
+    folder = cache / hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / name
+    # Reuse a download only when there's a hash to check it against (the model file). Without
+    # one (the proof), fetch it again: it's small, and the URL may now serve something else.
+    if dest.exists() and expect_sha256 and file_sha256(dest) == expect_sha256:
         return dest
     tmp = dest.with_suffix(dest.suffix + ".part")
     say(f"Downloading {src}")
@@ -255,3 +261,8 @@ def file_sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _context_text(msgs: Sequence[dict[str, Any]]) -> str:
+    from .pipeline import context_text
+    return context_text(msgs)

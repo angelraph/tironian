@@ -550,6 +550,7 @@ class Engine:
         def run() -> None:
             try:
                 from .evaluate import check_decision
+                from .pipeline import context_text
                 s: Settings = plan["settings"]
                 chosen: PromotedFamily = plan["family"]
                 # Nothing waits on a shadow answer, so a slow cold start isn't a failure here.
@@ -565,7 +566,8 @@ class Engine:
                     self._shadow_n += 1
                     chk = check_decision(reply.text, teacher.get("content") or "", teacher.get("tool_calls") or [],
                                          plan["tools"], user_request=plan["turn"].user_text,
-                                         judge=self._shadow_judge(), flip=bool(self._shadow_n % 2))
+                                         judge=self._shadow_judge(), flip=bool(self._shadow_n % 2),
+                                         context=context_text(plan["compact"].messages))
                     outcome = "shadow_agree" if chk.passed else "shadow_disagree"
                     # Keep the why, so `/tironian why` can explain a student that isn't promoted.
                     self.store.meta_set(f"shadow_last:{chosen.family.id}", json.dumps({

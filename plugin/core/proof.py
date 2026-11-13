@@ -231,9 +231,14 @@ def fetch(src: str, cache: Path, *, expect_sha256: str | None = None,
         return p
     import urllib.request
     name = Path(urllib.parse.urlsplit(src).path).name or "download"
-    cache.mkdir(parents=True, exist_ok=True)
-    dest = cache / name
-    if dest.exists() and (not expect_sha256 or file_sha256(dest) == expect_sha256):
+    # Every release names its proof proof.json, so the cache is per URL: keyed by name alone,
+    # verifying v7 after v4 handed back v4's proof.
+    folder = cache / hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / name
+    # Reuse a download only when there's a hash to check it against (the model file). Without
+    # one (the proof), fetch it again: it's small, and the URL may now serve something else.
+    if dest.exists() and expect_sha256 and file_sha256(dest) == expect_sha256:
         return dest
     tmp = dest.with_suffix(dest.suffix + ".part")
     say(f"Downloading {src}")

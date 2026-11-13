@@ -90,3 +90,29 @@ def test_fetch_local_and_missing(tmp_path):
     with pytest.raises(FileNotFoundError):
         proof.fetch(str(tmp_path / "nope.json"), tmp_path / "cache")
     assert proof.file_sha256(f) == "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+
+
+def test_fetch_keeps_each_release_apart(tmp_path, monkeypatch):
+    """Found verifying v7's public release right after v4's: both are called proof.json, and the
+    cache handed back v4's proof, so the v7 model 'failed' its sha256 check."""
+    import io
+    import urllib.request
+    served = {"https://x.test/v4/proof.json": b'{"v": 4}', "https://x.test/v7/proof.json": b'{"v": 7}'}
+
+    class Resp(io.BytesIO):
+        headers: dict = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout=60: Resp(served[url]))
+    cache = tmp_path / "cache"
+    say = lambda s: None
+    assert proof.fetch("https://x.test/v4/proof.json", cache, say=say).read_bytes() == b'{"v": 4}'
+    assert proof.fetch("https://x.test/v7/proof.json", cache, say=say).read_bytes() == b'{"v": 7}'
+    # Same URL serving something new: a file with no hash to check is fetched again.
+    served["https://x.test/v7/proof.json"] = b'{"v": 7.1}'
+    assert proof.fetch("https://x.test/v7/proof.json", cache, say=say).read_bytes() == b'{"v": 7.1}'

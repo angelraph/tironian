@@ -22,6 +22,37 @@ from typing import Any, Sequence
 
 _THINK = re.compile(r"^\s*<think>[\s\S]*?</think>\s*")  # same rule as trainer/train_core.strip_think
 
+#: A student's reply is a tool call or a short answer. Anything bigger than this is a broken or
+#: hostile server, so it is refused (and your model answers) instead of read into memory.
+MAX_REPLY_BYTES = 4 * 1024 * 1024
+
+
+class ReplyTooLarge(Exception):
+    pass
+
+
+def _is_loopback(url: str) -> bool:
+    import urllib.parse
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    return host in ("localhost", "::1") or host.startswith("127.") or host.endswith(".localhost")
+
+
+def http_read(req: Any, *, timeout: float, limit: int | None = None) -> bytes:
+    """GET or POST and return at most ``limit`` bytes.
+
+    A call to a server on this machine never goes through HTTP_PROXY: with a proxy set, urllib
+    would otherwise send the student's prompt to the proxy, which fails at best.
+    """
+    import urllib.request
+    limit = MAX_REPLY_BYTES if limit is None else limit
+    url = req.full_url if isinstance(req, urllib.request.Request) else str(req)
+    handlers = [urllib.request.ProxyHandler({})] if _is_loopback(url) else []
+    with urllib.request.build_opener(*handlers).open(req, timeout=timeout) as resp:  # noqa: S310 - user-set endpoint
+        data = resp.read(limit + 1)
+    if len(data) > limit:
+        raise ReplyTooLarge(f"reply over {limit} bytes")
+    return data
+
 
 @dataclass
 class StudentReply:
@@ -60,8 +91,9 @@ class StudentClient:
                                      headers={"Content-Type": "application/json"}, method="POST")
         started = time.monotonic()
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:  # noqa: S310 - user-set local endpoint
-                data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(http_read(req, timeout=self.timeout_s).decode("utf-8"))
+        except ReplyTooLarge:
+            return StudentReply(False, latency_ms=int((time.monotonic() - started) * 1000), error="too_large")
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             return StudentReply(False, latency_ms=int((time.monotonic() - started) * 1000),
                                 error=f"unreachable:{type(exc).__name__}")
@@ -86,8 +118,7 @@ class StudentClient:
         import urllib.request
 
         try:
-            with urllib.request.urlopen(self.endpoint + "/models", timeout=3) as resp:  # noqa: S310
-                data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(http_read(self.endpoint + "/models", timeout=3).decode("utf-8"))
             return [str(m.get("id")) for m in data.get("data", []) if m.get("id")]
         except Exception:
             return []

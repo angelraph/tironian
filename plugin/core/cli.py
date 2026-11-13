@@ -44,6 +44,34 @@ def _follow(app: Any, job_id: str) -> int:
 
 
 def run(args: Any) -> int:
+    """Run one ``hermes tironian`` command. A bad name, a missing file or a step that can't
+    happen yet gets one plain sentence and exit code 1, never a Python traceback."""
+    try:
+        return _run(args)
+    except (ValueError, LookupError, RuntimeError, OSError) as exc:
+        msg = str(exc).strip().strip("'\"") or type(exc).__name__
+        _p(f"tironian: {msg}")
+        hint = _HINTS.get(getattr(args, "tironian_cmd", None) or "")
+        if hint:
+            _p(hint)
+        return 1
+
+
+#: Where to look up the name a command needs, shown after its error.
+_HINTS = {
+    "dataset": "See `hermes tironian families` for family ids.",
+    "train": "See `hermes tironian families` for family ids.",
+    "export": "See `hermes tironian families` for family ids.",
+    "shadow": "See `hermes tironian families` for family ids.",
+    "promote": "See `hermes tironian families` for family ids.",
+    "demote": "See `hermes tironian families` for family ids.",
+    "eval": "See `hermes tironian students` for student ids.",
+    "passport": "See `hermes tironian students` for student ids.",
+    "cancel": "See `hermes tironian jobs` for job ids.",
+}
+
+
+def _run(args: Any) -> int:
     app = get_app()
     cmd = getattr(args, "tironian_cmd", None) or "status"
     s = app.settings()
@@ -118,7 +146,8 @@ def run(args: Any) -> int:
         if args.follow:
             return _follow(app, args.job)
     elif cmd == "cancel":
-        jobs.cancel(app.data_dir, args.job)
+        if not jobs.cancel(app.data_dir, args.job):
+            raise ValueError(f"unknown job {args.job}")
         _p("Cancellation requested.")
     elif cmd == "students":
         rows = app.store.q("SELECT * FROM students ORDER BY created_at DESC")

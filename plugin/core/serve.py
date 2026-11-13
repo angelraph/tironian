@@ -117,8 +117,9 @@ def keep_warm(endpoint: str, model_id: str, *, keep_alive: str = "60m", timeout_
     body = json.dumps({"model": model_id, "keep_alive": keep_alive, "prompt": "", "stream": False}).encode()
     req = urllib.request.Request(f"{base}/api/generate", data=body, headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:  # noqa: S310 - local Ollama only
-            return resp.status == 200
+        from .student import http_read
+        http_read(req, timeout=timeout_s)   # urllib raises on anything but a 2xx
+        return True
     except Exception:
         return False
 

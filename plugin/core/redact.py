@@ -109,6 +109,15 @@ class RedactionResult:
         return sum(self.hits.values())
 
 
+#: Words that name chat roles. Never treated as a login name.
+_ROLE_WORDS = frozenset({"user", "assistant", "system", "tool", "function", "developer", "model"})
+
+#: JSON keys whose string values describe structure, not content.
+_STRUCTURAL_KEYS = frozenset({"role", "type", "tool_call_id", "finish_reason"})
+#: ...but only when the value looks like an identifier. A path or a sentence is still masked.
+_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_.:-]{0,63}")
+
+
 class Redactor:
     """Stateless apart from configuration; safe to share across threads."""
 
@@ -122,7 +131,11 @@ class Redactor:
             if base:
                 names.add(base)
         self._homes = sorted({h for h in homes if h and len(h) > 3}, key=len, reverse=True)
-        self._usernames = sorted({n for n in names if n and len(n) >= 3}, key=len, reverse=True)
+        # A login called "user" (common in containers and cloud VMs) must not mask the word, or
+        # every message role and every "the user asked" turns into a mask. The home folder
+        # itself is still masked as a path above.
+        self._usernames = sorted({n for n in names if n and len(n) >= 3 and n.lower() not in _ROLE_WORDS},
+                                 key=len, reverse=True)
 
     def redact_text(self, text: str) -> RedactionResult:
         """Mask one string. Long strings are cached: each model call resends the whole
@@ -216,7 +229,10 @@ class Redactor:
                 merge(r.hits)
                 return r.text
             if isinstance(x, dict):
-                return {k: walk(v) for k, v in x.items()}
+                # Structural fields (a message's role, a block's type, call ids) are never
+                # personal data, and masking them breaks the conversation's shape.
+                return {k: v if k in _STRUCTURAL_KEYS and isinstance(v, str) and _TOKEN.fullmatch(v) else walk(v)
+                        for k, v in x.items()}
             if isinstance(x, (list, tuple)):
                 return [walk(v) for v in x]
             return x

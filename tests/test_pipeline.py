@@ -42,7 +42,9 @@ def make_state_db(path: Path, n: int = 60) -> None:
 
 
 def test_end_to_end(app_factory, llama, tmp_path):
-    app = app_factory(student_endpoint=llama.url, min_eval_n=5)
+    # About 15 held-out steps of each kind: even a perfect student's Wilson lower bound is 80%
+    # there, and each kind must now pass on its own, so this pipeline test uses a 75% bar.
+    app = app_factory(student_endpoint=llama.url, min_eval_n=5, promotion_threshold=0.75)
     make_state_db(app.state_db)
 
     # 1. first-minute report from history (read-only import)

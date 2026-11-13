@@ -301,15 +301,13 @@ def gated_scorecard(checks: Sequence[Check], latencies_ms: Sequence[int], kinds:
         sc.gate_reason = "passed for " + " and ".join(
             f"{k} steps ({sc.steps[k]['gate_reason']})" for k in sc.serve_steps) + "; your model handles the rest"
     elif sc.gate_passed:
-        # The whole set passed. A kind too small to pass alone rides along only if its own
-        # pass rate and validity are as good as the gate asks for, so a weak kind can't hide.
-        for kind, d in sc.steps.items():
-            if kind not in sc.serve_steps and d["n"] and d["passed"] / d["n"] >= threshold \
-                    and d["validity"] >= validity_floor:
-                sc.serve_steps.append(kind)
+        # The whole set passed. Pooling must never make the gate easier, so a kind serves only
+        # on its own min_n examples and its own Wilson bound: 9 out of 9 is not evidence.
         sc.serve_steps = [k for k in STEP_KINDS if k in sc.serve_steps]
         if not sc.serve_steps:
-            sc.gate_passed, sc.gate_reason = False, "no step kind is good enough on its own"
+            sc.gate_passed = False
+            sc.gate_reason = "no step kind passes on its own: " + "; ".join(
+                f"{k} steps: {d['gate_reason']}" for k, d in sc.steps.items())
     elif sc.steps:
         # Say why each kind failed, not just the first overall check that tripped.
         sc.gate_reason = "; ".join(f"{k} steps: {d['gate_reason']}" for k, d in sc.steps.items())

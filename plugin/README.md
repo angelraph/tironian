@@ -60,6 +60,10 @@ Then in any Hermes session:
 On first use Tironian reads your existing Hermes history (read only), so the report already has
 something in it. That step needs no keys, no GPU and costs nothing.
 
+You may see `unknown manifest field(s) ignored: provides_middleware` when Hermes starts. That's a
+known Hermes issue (NousResearch/hermes-agent#131257): `hermes plugins validate` requires the field
+and the loader doesn't list it yet. The middleware loads either way.
+
 ## Training a model
 
 ```bash

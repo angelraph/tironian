@@ -188,7 +188,8 @@ because ten examples prove very little. The default gate needs a lower bound of 
 steps and 98% format validity.
 
 The first step of a task and the steps after a tool result are scored **separately**, each with
-its own minimum and its own bound. Small models are often good at the first and shaky at the
+its own minimum and its own bound. A kind never passes on the strength of the other: if the whole
+set passes but a kind has too few steps of its own, that kind stays with your model. Small models are often good at the first and shaky at the
 second, so a student can serve just the first step and your model writes the answer from the
 output. Sessions you record after training were never seen either, so they join the test too: run
 `eval` again later and the evidence grows without training again.
@@ -343,11 +344,12 @@ Hermes uses only the Python standard library.
 
 ## Verification
 
-- **Tests:** 99, covering redaction, grading, clustering, the dataset split, the per-step Wilson
+- **Tests:** 123, covering redaction (including a login named `user`), grading, clustering, the dataset split, the per-step Wilson
   gate, the judge, and every routing fallback path (malformed output, unknown tool, schema
   failure, server error, timeout, sticky fallback, hand-back after a blocked tool, auto-demotion,
   shadow mode, spot checks and drift, exact forgetting), plus the offline demo end to end, the
-  proof card, the passport seal and resuming a lost training run. CI runs them on Linux and Windows, Python 3.11 to 3.14.
+  proof card, the passport seal, resuming a lost training run, local calls that skip a configured
+  proxy, and every `hermes tironian` command given a name that doesn't exist (one line, never a traceback). CI runs them on Linux and Windows, Python 3.11 to 3.14.
 - **Hermes checks:** `hermes plugins validate` (including the security scan) and
   `hermes plugins doctor --ci` pass at the pinned catalog SHA.
 - **Live, on Windows with Hermes v0.22.7 and v0.23.0:** capture of streaming turns, four real
@@ -371,6 +373,7 @@ hermes plugins doctor plugin --ci
 | Nov 7 | First real students on Modal. Students load into Ollama on their own. The per-step gate and the judge for differing commands. Grouping fixed for when one task dominates history |
 | Nov 8 | v4 passes the gate (51 of 51), goes through shadow mode (18 of 20) and goes live. Fixed shadow mode needing the answer switch, the judge budget and timeouts, cold starts, and the page showing a misleading score. Demo video, submission. Then, from a question on X: spot checks that catch drift, one correction sends a student back, exact forgetting, and students kept loaded between requests |
 | Nov 9 | `/tironian demo` and a Run the demo button: the whole loop offline in half a minute, which found two bugs on its way. Training survives network blips, and `resume` reattaches to a lost Modal run (used for real on the recent files family). A proof card under replies your own model helped write, cloud tokens avoided on the page, and a sealed passport for every student. Two more families trained: recent files and largest files |
+| Nov 13 | Fixes from an outside review (IMD's agents ran it inside Hermes): any command given a name that doesn't exist now answers in one line instead of a traceback; a step kind with too few test steps can no longer pass on the pooled score; a login named `user` no longer masks message roles; calls to the local model skip HTTP_PROXY; student replies are capped at 4 MB |
 
 Every fix has a commit with the reason in it, and the plain-words version is on the
 [changelog](https://tironian.vercel.app/changelog).

@@ -24,7 +24,8 @@ provides_hooks:
   - post_approval_response
   - subagent_start
   - transform_llm_output
-# `hermes plugins validate` checks this list (the v0.22.7 loader still logs it as an unknown field).
+# `hermes plugins validate` requires this list. The loader still logs it as an unknown field:
+# a known Hermes bug, NousResearch/hermes-agent#131257. Harmless; the middleware loads.
 provides_middleware:
   - llm_execution
 requires_env: []

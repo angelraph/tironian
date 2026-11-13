@@ -274,10 +274,13 @@ def resume(store: Store, data_dir: Path, job_id: str, secrets: dict[str, str] | 
     return remote
 
 
-def cancel(data_dir: Path, job_id: str) -> None:
+def cancel(data_dir: Path, job_id: str) -> bool:
+    """Ask a running job to stop. False if there is no such job."""
     jdir = data_dir / "jobs" / job_id
-    if jdir.exists():
-        (jdir / "cancel").write_text("1")
+    if not job_id or not jdir.is_dir():
+        return False
+    (jdir / "cancel").write_text("1")
+    return True
 
 
 def read_status(jdir: Path) -> list[dict[str, Any]]:

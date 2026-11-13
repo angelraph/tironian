@@ -50,6 +50,23 @@ def test_redact_obj_walks_structures():
     assert obj["a"][0] == "x [REDACTED:anthropic_key]" and obj["b"] == 3 and hits == {"anthropic_key": 1}
 
 
+def test_a_login_called_user_keeps_message_roles():
+    """A judge ran the tests in a container whose home was /home/user: every role became a mask."""
+    r = Redactor(home_dirs=["/home/user"], usernames=["user"])
+    msgs = [{"role": "user", "content": "count files in /home/user/Music for the user"},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function"}]}]
+    out, hits = r.redact_obj(msgs)
+    assert [m["role"] for m in out] == ["user", "assistant"]
+    assert out[0]["content"] == "count files in ~/Music for the user"
+    assert out[1]["tool_calls"][0] == {"id": "call_1", "type": "function"}
+    assert hits == {"home_path": 1}
+
+
+def test_structural_keys_still_mask_paths():
+    out, _ = R.redact_obj({"role": "alice", "type": r"C:\Users\alice\notes.txt"})
+    assert out == {"role": "alice", "type": r"~\notes.txt"}
+
+
 def test_clustering_is_deterministic_and_groups_paraphrases():
     items = [families.Item(f"t{i}", u, ["terminal"]) for i, u in enumerate([
         "what's using disk space in ~/Downloads", "what is using the most disk space in /var/log",
@@ -217,9 +234,15 @@ def test_gate_per_step_kind():
     # Too few examples of the kind that is good: nothing passes.
     sc = gated_scorecard([good] * 20 + [bad] * 20, [100] * 40, ["first"] * 20 + ["follow"] * 20, min_n=30)
     assert not sc.gate_passed and sc.serve_steps == []
-    # Everything passes together: a small but perfect kind may ride along, a weak one may not.
+    # Everything passes together: a weak small kind stays out.
     sc = gated_scorecard([good] * 40 + [good] * 9 + [bad], [1] * 50, ["first"] * 40 + ["follow"] * 10, min_n=30)
     assert sc.gate_passed and sc.serve_steps == ["first"]
+    # A small kind never rides along on the pooled result, even with a perfect score.
+    sc = gated_scorecard([good] * 50, [1] * 50, ["first"] * 40 + ["follow"] * 10, min_n=30)
+    assert sc.gate_passed and sc.serve_steps == ["first"] and not sc.steps["follow"]["gate_passed"]
+    # Two kinds that are each too small: the pooled set passes, but nothing may serve.
+    sc = gated_scorecard([good] * 40, [1] * 40, ["first"] * 20 + ["follow"] * 20, min_n=30)
+    assert not sc.gate_passed and sc.serve_steps == [] and "on its own" in sc.gate_reason
 
 
 def test_shell_commands_compared_by_words_not_characters():

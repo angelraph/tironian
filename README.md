@@ -27,12 +27,12 @@ Built for the Nous Research **Hermes Agent plugin hackathon**.
 | **Student model** | Qwen3 1.7B, LoRA fine-tune, exported as a 1.11 GB Q4_K_M GGUF, served by Ollama or Hermes's local model server |
 | **Training** | On a GPU in your own Modal account: my runs took about 10 minutes and cost $0.14, with a hard cap. Or free on your own NVIDIA GPU |
 | **The gate** | Held-out sessions, a blind judge for differing answers, and the 95% Wilson lower bound must reach 85%, judged separately for first steps and steps after a tool result |
-| **Live result** | First steps **51 of 51** on held-out sessions (lower bound 93%), **18 of 20** agreement in shadow mode, then live. On Nov 9 a new test on folders it never trained on caught it writing `$HOME/...` for paths outside my home folder (5 of 13), and took it off duty by itself |
+| **Live result** | Count student v7: first steps **56 of 57** on held-out sessions (lower bound 91%), **42 of 42** on folders it never trained on, **20 of 21** in shadow mode, then live. Before it, v4 (51 of 51) was taken off duty by the new-folder test, by itself |
 | **Safety net** | Every answer must parse, call only offered tools and fit their schemas, or your usual model answers, silently. Spot checks on live requests catch drift, and one correction sends a student back to shadow |
 | **Hermes surfaces** | `llm_execution` middleware, 10 hooks, `/tironian`, `hermes tironian`, an auxiliary model slot, a Desktop page and status chip, a dashboard API |
 | **Try it now** | `/tironian demo` runs the whole loop in about 30 seconds, offline, with no keys: a model refused by the gate, a retrained one passing, shadow mode, a live answer and a silent fallback |
 | **Proof you can check** | Answers your own model helped write carry a small card in chat with the evidence behind it. `hermes tironian passport` issues a sealed record of any student. `hermes tironian verify` reruns a student's whole held-out test on its model file, on your machine: [try it on mine](#check-my-numbers-yourself) |
-| **Tests** | 129 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
+| **Tests** | 133 tests, CI on Linux and Windows with Python 3.11 to 3.14, `hermes plugins validate` and `doctor` clean |
 | **Privacy** | Secrets and personal details masked before storage, history read only, nothing sent anywhere until you start a training run |
 
 ## Contents
@@ -81,13 +81,15 @@ Ollama on the CPU. The family is "count the files of a type in a folder".
 |---|---|---|
 | Training on a Modal L4 | 180 examples, 46 steps, about 10 minutes, $0.14 | [train scene](media/train.jpg) |
 | Early student (v2) | 7 of 31 held-out steps, lower bound 11%: **refused by the gate** | [gate scene](media/gate.jpg) |
-| Current student (v4), first steps | **51 of 51**, lower bound **93%**: passes | [gate scene](media/gate.jpg), [Hermes page](media/hermes-page.png) |
-| Current student (v4), after a tool result | 45 of 104: stays with my usual model | [Hermes page](media/hermes-page.png) |
+| Student v4, first steps | **51 of 51**, lower bound **93%**: passes | [gate scene](media/gate.jpg), [Hermes page](media/hermes-page.png) |
+| Student v4, after a tool result | 45 of 104: stays with my usual model | [Hermes page](media/hermes-page.png) |
 | Shadow mode, real requests | **18 of 20** agreed, so it went live | [shadow scene](media/shadow.jpg) |
 | Live request | First step written by the student in 6.2 s, answer by my usual model | [live scene](media/live.jpg) |
 | Student unreachable | My usual model answered, nothing shown to me, logged as a fallback | [live scene](media/live.jpg) |
 | Folders it never trained on (`C:\Windows`, `C:\Program Files`, `C:\ProgramData`) | First steps **5 of 13**: it rewrote those paths as `$HOME/...`. Taken off duty automatically | [changelog](https://tironian.vercel.app/changelog) |
-| v5, trained with whole folder trees held out | Every path right now. First steps **44 of 51** on four trees it never saw, lower bound 74%: **not passed yet**. The 7 misses were judgment calls (counting subfolders or not) | [changelog](https://tironian.vercel.app/changelog) |
+| v5, trained with whole folder trees held out | Every path right now. First steps **44 of 51** on four trees it never saw, lower bound 74%: **not passed**. The 7 misses were judgment calls (counting subfolders or not) | [changelog](https://tironian.vercel.app/changelog) |
+| v6, on requests that say subfolders count | First steps 40 of 43, but 3 of those passes were `/c/Users/[REDACTED]/...` paths it learned from masked training data. They can't run, so the test now fails them: **37 of 43, not passed** | [proof-count-v7 notes](https://github.com/angelraph/tironian/releases/tag/proof-count-v7) |
+| **v7, live now** | Trained without those steps. First steps **56 of 57**, lower bound **91%**; **42 of 42** on folders it never trained on; **20 of 21** in shadow; then live, about 5 s a step | [proof-count-v7](https://github.com/angelraph/tironian/releases/tag/proof-count-v7) |
 
 The held-out steps include 62 from sessions recorded after training, which the student had never
 seen. Most sessions were seeded with [`scripts/seed_sessions.py`](scripts/seed_sessions.py), which
@@ -352,14 +354,19 @@ took (every request, its answer, and how each answer was graded) into one sealed
 that was tested (sha256), loads it into Ollama, asks every step again and grades the answers with
 the same code. Nothing from my machine is needed.
 
-My count student (v4), its proof and its passport are in the
-[proof-count-v4 release](https://github.com/angelraph/tironian/releases/tag/proof-count-v4). One
+My live count student (v7), its proof and its passport are in the
+[proof-count-v7 release](https://github.com/angelraph/tironian/releases/tag/proof-count-v7). One
 command downloads both files and reruns the test:
 
 ```bash
-hermes tironian verify https://github.com/angelraph/tironian/releases/download/proof-count-v4/proof.json --model https://github.com/angelraph/tironian/releases/download/proof-count-v4/tironian-f8667670c-v4.gguf
+hermes tironian verify https://github.com/angelraph/tironian/releases/download/proof-count-v7/proof.json --model https://github.com/angelraph/tironian/releases/download/proof-count-v7/tironian-fe5f1983b-v2.gguf
 ```
 
+Run from those links on my laptop CPU, about 4.5 s a step: 55 of 57 answers identical, the other
+2 still exact matches by rule, 56 of 57 passed, `GATE REPRODUCED: lower bound 91% >= 85%`.
+
+The earlier student (v4) is in the
+[proof-count-v4 release](https://github.com/angelraph/tironian/releases/tag/proof-count-v4).
 Run on my machine, on a CPU:
 
 ```
@@ -410,7 +417,7 @@ hermes plugins doctor plugin --ci
 | Nov 7 | First real students on Modal. Students load into Ollama on their own. The per-step gate and the judge for differing commands. Grouping fixed for when one task dominates history |
 | Nov 8 | v4 passes the gate (51 of 51), goes through shadow mode (18 of 20) and goes live. Fixed shadow mode needing the answer switch, the judge budget and timeouts, cold starts, and the page showing a misleading score. Demo video, submission. Then, from a question on X: spot checks that catch drift, one correction sends a student back, exact forgetting, and students kept loaded between requests |
 | Nov 9 | `/tironian demo` and a Run the demo button: the whole loop offline in half a minute, which found two bugs on its way. Training survives network blips, and `resume` reattaches to a lost Modal run (used for real on the recent files family). A proof card under replies your own model helped write, cloud tokens avoided on the page, and a sealed passport for every student. Two more families trained: recent files and largest files |
-| Nov 13 | Fixes from an outside review (IMD's agents ran it inside Hermes): any command given a name that doesn't exist now answers in one line instead of a traceback; a step kind with too few test steps can no longer pass on the pooled score; a login named `user` no longer masks message roles; calls to the local model skip HTTP_PROXY; student replies are capped at 4 MB. Then `proof` and `verify`: anyone can rerun a student's held-out test on its model file. Rerun on count v4: same answer on 51 of 51 steps, gate reproduced |
+| Nov 13 | Fixes from an outside review (IMD's agents ran it inside Hermes): any command given a name that doesn't exist now answers in one line instead of a traceback; a step kind with too few test steps can no longer pass on the pooled score; a login named `user` no longer masks message roles; calls to the local model skip HTTP_PROXY; student replies are capped at 4 MB. Then `proof` and `verify`: anyone can rerun a student's held-out test on its model file. Rerun on count v4: same answer on 51 of 51 steps, gate reproduced. Then count v6 and v7 on requests that say subfolders count: v6's test showed students writing made-up redaction masks (`/c/Users/[REDACTED]/...`) that the judge passed, so the test now fails any mask the student wasn't shown, and those steps are left out of training. v7 passed (56 of 57, 42 of 42 on new folders), went through shadow (20 of 21) and is live. Its public verify caught one more bug: downloads were cached by file name, so v7's check got v4's `proof.json`. Fixed |
 
 Every fix has a commit with the reason in it, and the plain-words version is on the
 [changelog](https://tironian.vercel.app/changelog).
@@ -423,7 +430,7 @@ plugin/             the plugin itself (the catalog points here)
   trainer/          the Modal and local GPU trainer (runs in its own venv)
   desktop/          the Hermes Desktop page and status chip
   dashboard/        the dashboard API
-tests/              129 tests with a fake Hermes context and a fake model server
+tests/              133 tests with a fake Hermes context and a fake model server
 scripts/            seed_sessions.py, which runs real Hermes sessions to seed a family
 demo/               the demo video: script, narration, motion graphics, transcript
 media/              screenshots used in this README
